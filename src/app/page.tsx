@@ -1,3 +1,10 @@
+// ============================================================
+// app/page.tsx — Landing / home page (route: /)
+//
+// Simple splash screen with a "Start Game" link to /game.
+// No game state here — GameProvider is only mounted on /game.
+// ============================================================
+
 import Image from "next/image";
 
 export default function Home() {

@@ -1,3 +1,30 @@
+// ============================================================
+// components/Card.tsx — Visual playing card
+//
+// Renders a single card as a button. Shows rank and suit symbol
+// in top-left and (rotated 180°) bottom-right corners, with a
+// large suit symbol in the centre — standard playing card layout.
+//
+// Props:
+//   card     — the card to display
+//   onClick  — called when card is clicked (omit for non-interactive)
+//   disabled — greys out card and disables click (used in trick
+//              display and when it's not the player's turn)
+//
+// Styling:
+//   Red suits (hearts/diamonds) render in red; black suits in black.
+//   Disabled cards are 50% opacity with not-allowed cursor.
+//   Hovering a non-disabled card scales it up slightly (scale-105).
+//
+// Known gaps / TODOs:
+//   - Rank display uses toUpperCase() so "ace" → "ACE", "10" → "10".
+//     Consider abbreviating: A, K, Q, J, 10, 9... for a more
+//     traditional card face look.
+//   - No back-of-card rendering (needed if opponents' hands are shown).
+//   - Card size is fixed (w-24 h-36). May need responsive sizing for
+//     mobile or when many cards are in hand.
+// ============================================================
+
 import React from 'react';
 import { Card as CardType } from '@/types/game';
 
@@ -31,6 +58,7 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled }) => {
         flex flex-col items-center justify-center
       `}
     >
+      {/* Top-left corner: rank + suit */}
       <div className="absolute top-2 left-2 flex flex-col items-center">
         <span className={`text-lg font-bold ${suitColor}`}>
           {card.rank.toUpperCase()}
@@ -39,9 +67,11 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled }) => {
           {getSuitSymbol(card.suit)}
         </span>
       </div>
+      {/* Centre: large suit symbol */}
       <div className={`text-4xl ${suitColor}`}>
         {getSuitSymbol(card.suit)}
       </div>
+      {/* Bottom-right corner: rank + suit, rotated 180° */}
       <div className="absolute bottom-2 right-2 flex flex-col items-center rotate-180">
         <span className={`text-lg font-bold ${suitColor}`}>
           {card.rank.toUpperCase()}

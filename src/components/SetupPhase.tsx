@@ -1,3 +1,26 @@
+// ============================================================
+// components/SetupPhase.tsx — Game setup modal
+//
+// Full-screen modal shown when game phase is 'setup' (initial state).
+// Collects the first player's name and total player count (2, 3, or 4),
+// then calls onSetupComplete to dispatch SETUP_GAME.
+//
+// After setup:
+//   - GameState.players has one entry (the player who set up the game)
+//   - GameState.phase becomes 'bidding'
+//   - Cards are NOT yet dealt (hands are empty until START_ROUND fires)
+//
+// Known gaps / TODOs:
+//   - Only 2/3/4 players supported (hardcoded button options).
+//     Real Contract Whist can support up to 7 players.
+//   - After setup, there's no flow for additional players to join
+//     (JOIN_GAME action exists but no UI was built for it).
+//   - No input validation beyond requiring a non-empty name.
+//   - The modal background is bg-black/50. If rendered on the green
+//     table it will overlay it — currently setup always shows first
+//     before the table renders, so this is fine.
+// ============================================================
+
 'use client';
 
 import React, { useState } from 'react';
@@ -35,11 +58,12 @@ const SetupPhase: React.FC<SetupPhaseProps> = ({ onSetupComplete }) => {
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Number of Players
             </label>
+            {/* Supports 2, 3, or 4 players only */}
             <div className="flex justify-center gap-4">
               {[2, 3, 4].map((count) => (
                 <button

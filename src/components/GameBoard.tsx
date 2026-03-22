@@ -1,3 +1,31 @@
+// ============================================================
+// components/GameBoard.tsx — Top-level game UI orchestrator
+//
+// Role: reads GameState from context and decides which sub-components
+// to render based on game phase. All user actions are routed through
+// context actions (playCard, placeBid, setupGame).
+//
+// Render logic:
+//   phase === 'setup'    → SetupPhase (full-screen modal)
+//   players.length === 0 → waiting-for-players splash (unreachable in
+//                          practice: SETUP_GAME always adds player1)
+//   otherwise            → GameTable + PlayerHand + conditional BiddingPhase
+//   phase === 'finished' → overlay with final scores
+//
+// Known gaps / TODOs:
+//   - No UI for 'scoring' phase: when all cards are played the game
+//     reaches 'scoring' but there's no button to trigger END_ROUND.
+//     The game is stuck until END_ROUND is dispatched.
+//   - Only the first player (currentPlayer) is shown their hand.
+//     Multi-player hot-seat would need a "pass device" flow or separate
+//     views per player.
+//   - canPlayCard re-evaluates isValidPlay on every render for every
+//     card; fine for small hands but could be memoised.
+//   - The 'waiting for players' branch (players.length === 0) is
+//     currently unreachable because SETUP_GAME always adds player1.
+//     JOIN_GAME has no UI so additional players never join.
+// ============================================================
+
 'use client';
 
 import React from 'react';
@@ -25,6 +53,7 @@ const GameBoard = () => {
     }
   };
 
+  // Returns false if it's not this player's turn, wrong phase, or card violates follow-suit
   const canPlayCard = (card: CardType) => {
     if (!currentPlayer || state.phase !== 'playing') return false;
     return isValidPlay(card, currentPlayer.hand, state.currentTrick, state.trumpSuit);
@@ -34,6 +63,7 @@ const GameBoard = () => {
     return <SetupPhase onSetupComplete={setupGame} />;
   }
 
+  // Unreachable in current flow — SETUP_GAME always adds player1 immediately
   if (state.players.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -53,13 +83,15 @@ const GameBoard = () => {
 
   return (
     <div className="relative min-h-screen bg-gray-100">
+      {/* Green felt table with player info boxes and current trick cards */}
       <GameTable
         players={state.players}
         currentTrick={state.currentTrick}
         currentPlayerIndex={state.currentPlayerIndex}
         trumpSuit={state.trumpSuit}
       />
-      
+
+      {/* Current player's hand and bidding UI — fixed to bottom of screen */}
       {currentPlayer && (
         <>
           <PlayerHand
@@ -68,7 +100,8 @@ const GameBoard = () => {
             isCurrentPlayer={true}
             canPlayCard={canPlayCard}
           />
-          
+
+          {/* BiddingPhase only shown when it's this player's turn to bid */}
           {state.phase === 'bidding' && currentPlayer.bid === null && (
             <BiddingPhase
               currentPlayer={currentPlayer}
@@ -79,6 +112,7 @@ const GameBoard = () => {
         </>
       )}
 
+      {/* Game-over overlay — shows final scores sorted descending */}
       {state.phase === 'finished' && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-8 rounded-lg shadow-xl">
@@ -96,6 +130,7 @@ const GameBoard = () => {
                   );
                 })}
             </div>
+            {/* TODO: add a "Play Again" button that resets state */}
           </div>
         </div>
       )}
