@@ -1,29 +1,4 @@
-// ============================================================
-// components/BiddingPhase.tsx — Bid selection UI
-//
-// Shown as a fixed bottom panel when it's the current player's
-// turn to bid. Displays numbered buttons 0..maxBid, then a
-// Submit button.
-//
-// Props:
-//   currentPlayer — the player whose turn it is to bid
-//   maxBid        — highest allowed bid (typically hand size)
-//   onBidSubmit   — callback with the selected bid value
-//
-// Layout:
-//   Buttons are in a 7-column grid. For large hands (e.g. 13 cards
-//   in a 4-player game) the 14 buttons (0–13) will wrap to 2 rows.
-//   This works fine but may want redesign for larger bid ranges.
-//
-// Known gaps / TODOs:
-//   - No "you cannot bid X" restriction (e.g. in some variants the
-//     dealer cannot bid a number that makes total bids equal tricks).
-//   - No visual indication of what other players have bid.
-//   - BiddingPhase overlaps PlayerHand (both fixed to bottom). If
-//     the bid panel is added before hand cards render, layout may
-//     jump. Consider a consistent bottom panel container.
-// ============================================================
-
+// KAN-10/35/36: Bid selection panel — dark/light, ADA accessible (min 48px targets)
 'use client';
 
 import React, { useState } from 'react';
@@ -43,47 +18,66 @@ const BiddingPhase: React.FC<BiddingPhaseProps> = ({
   const [selectedBid, setSelectedBid] = useState<number | null>(null);
 
   const handleBidSubmit = () => {
-    if (selectedBid !== null) {
-      onBidSubmit(selectedBid);
-    }
+    if (selectedBid !== null) onBidSubmit(selectedBid);
   };
 
   return (
-    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg p-4 w-96">
-      <h3 className="text-lg font-semibold mb-4 text-center">
-        {currentPlayer.name}'s Bid
-      </h3>
-      {/* Bid buttons 0 to maxBid — 7 columns, wraps for large hands */}
-      <div className="grid grid-cols-7 gap-2 mb-4">
-        {Array.from({ length: maxBid + 1 }, (_, i) => (
-          <button
-            key={i}
-            onClick={() => setSelectedBid(i)}
-            className={`
-              p-2 rounded-full w-10 h-10
-              ${selectedBid === i
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 hover:bg-gray-200'
-              }
-            `}
-          >
-            {i}
-          </button>
-        ))}
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bid-title"
+      className="fixed bottom-0 left-0 right-0 z-20 safe-area-bottom"
+    >
+      <div className="mx-auto max-w-lg bg-slate-900 border-t border-slate-700 rounded-t-2xl shadow-2xl px-6 pt-5 pb-6">
+        <h3 id="bid-title" className="text-base font-semibold text-slate-200 text-center mb-4">
+          <span className="text-slate-400">Your bid, </span>
+          <span className="text-white">{currentPlayer.name}</span>
+        </h3>
+
+        {/* KAN-36: min 48px touch targets for bid buttons */}
+        <div
+          className="flex flex-wrap justify-center gap-2 mb-5"
+          role="group"
+          aria-label="Select bid amount"
+        >
+          {Array.from({ length: maxBid + 1 }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => setSelectedBid(i)}
+              aria-pressed={selectedBid === i}
+              aria-label={`Bid ${i}`}
+              className={[
+                // KAN-36: min 48px (h-12 w-12 = 48px)
+                'h-12 w-12 rounded-xl font-bold text-lg',
+                'transition-all duration-100',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
+                selectedBid === i
+                  ? 'bg-indigo-600 text-white scale-105 shadow-lg'
+                  : 'bg-slate-800 text-slate-300 border border-slate-600 hover:bg-slate-700 hover:text-slate-100',
+              ].join(' ')}
+            >
+              {i}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={handleBidSubmit}
+          disabled={selectedBid === null}
+          aria-disabled={selectedBid === null}
+          data-testid="bid-submit-button"
+          className={[
+            'w-full h-14 rounded-xl font-semibold text-lg',
+            'transition-all duration-150',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
+            selectedBid !== null
+              ? 'bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white'
+              : 'bg-slate-800 text-slate-600 cursor-not-allowed',
+          ].join(' ')}
+        >
+          {selectedBid !== null ? `Bid ${selectedBid}` : 'Select a bid'}
+        </button>
       </div>
-      <button
-        onClick={handleBidSubmit}
-        disabled={selectedBid === null}
-        className={`
-          w-full py-2 px-4 rounded-lg font-semibold
-          ${selectedBid !== null
-            ? 'bg-blue-600 text-white hover:bg-blue-700'
-            : 'bg-gray-300 cursor-not-allowed'
-          }
-        `}
-      >
-        Submit Bid
-      </button>
     </div>
   );
 };

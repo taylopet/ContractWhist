@@ -1,30 +1,4 @@
-// ============================================================
-// components/Card.tsx — Visual playing card
-//
-// Renders a single card as a button. Shows rank and suit symbol
-// in top-left and (rotated 180°) bottom-right corners, with a
-// large suit symbol in the centre — standard playing card layout.
-//
-// Props:
-//   card     — the card to display
-//   onClick  — called when card is clicked (omit for non-interactive)
-//   disabled — greys out card and disables click (used in trick
-//              display and when it's not the player's turn)
-//
-// Styling:
-//   Red suits (hearts/diamonds) render in red; black suits in black.
-//   Disabled cards are 50% opacity with not-allowed cursor.
-//   Hovering a non-disabled card scales it up slightly (scale-105).
-//
-// Known gaps / TODOs:
-//   - Rank display uses toUpperCase() so "ace" → "ACE", "10" → "10".
-//     Consider abbreviating: A, K, Q, J, 10, 9... for a more
-//     traditional card face look.
-//   - No back-of-card rendering (needed if opponents' hands are shown).
-//   - Card size is fixed (w-24 h-36). May need responsive sizing for
-//     mobile or when many cards are in hand.
-// ============================================================
-
+// KAN-10/35: Playing card — clean modern design, ADA accessible, rank abbreviations
 import React from 'react';
 import { Card as CardType } from '@/types/game';
 
@@ -32,53 +6,69 @@ interface CardProps {
   card: CardType;
   onClick?: () => void;
   disabled?: boolean;
+  selected?: boolean;
 }
 
-const Card: React.FC<CardProps> = ({ card, onClick, disabled }) => {
-  const getSuitSymbol = (suit: string) => {
-    switch (suit) {
-      case 'hearts': return '♥';
-      case 'diamonds': return '♦';
-      case 'clubs': return '♣';
-      case 'spades': return '♠';
-      default: return '';
-    }
-  };
+const SUIT_SYMBOL: Record<string, string> = {
+  hearts: '♥',
+  diamonds: '♦',
+  clubs: '♣',
+  spades: '♠',
+};
 
-  const suitColor = card.suit === 'hearts' || card.suit === 'diamonds' ? 'text-red-600' : 'text-black';
+// KAN-10: abbreviated ranks for authentic card look (ACE → A, KING → K, etc.)
+const RANK_LABEL: Record<string, string> = {
+  ace: 'A', king: 'K', queen: 'Q', jack: 'J',
+  '10': '10', '9': '9', '8': '8', '7': '7',
+  '6': '6', '5': '5', '4': '4', '3': '3', '2': '2',
+};
+
+const Card: React.FC<CardProps> = ({ card, onClick, disabled = false, selected = false }) => {
+  const symbol = SUIT_SYMBOL[card.suit] ?? '';
+  const label = RANK_LABEL[card.rank] ?? card.rank;
+  const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
+  const colorClass = isRed ? 'text-red-600' : 'text-slate-900';
+
+  const ariaLabel = `${label} of ${card.suit}${disabled ? ', not playable' : ''}`;
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`
-        relative w-24 h-36 bg-white rounded-lg shadow-md border-2 border-gray-300
-        hover:shadow-lg transition-shadow duration-200
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105'}
-        flex flex-col items-center justify-center
-      `}
+      aria-label={ariaLabel}
+      aria-pressed={selected}
+      className={[
+        // Base card styles
+        'relative bg-white rounded-lg border select-none',
+        'w-20 h-28 sm:w-24 sm:h-36',
+        // Shadow and border
+        selected
+          ? 'border-indigo-500 shadow-[0_0_0_2px_theme(colors.indigo.500)]'
+          : 'border-slate-200 shadow-[var(--shadow-card)]',
+        // Hover / active states
+        disabled
+          ? 'opacity-40 cursor-not-allowed'
+          : 'cursor-pointer hover:-translate-y-1 hover:shadow-lg active:translate-y-0 transition-transform duration-150',
+        // Focus ring (KAN-36: ADA)
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2',
+        selected && !disabled ? '-translate-y-2' : '',
+      ].join(' ')}
     >
-      {/* Top-left corner: rank + suit */}
-      <div className="absolute top-2 left-2 flex flex-col items-center">
-        <span className={`text-lg font-bold ${suitColor}`}>
-          {card.rank.toUpperCase()}
-        </span>
-        <span className={`text-2xl ${suitColor}`}>
-          {getSuitSymbol(card.suit)}
-        </span>
+      {/* Top-left: rank + suit */}
+      <div className={`absolute top-1.5 left-2 flex flex-col items-center leading-none ${colorClass}`}>
+        <span className="text-base font-bold">{label}</span>
+        <span className="text-sm">{symbol}</span>
       </div>
+
       {/* Centre: large suit symbol */}
-      <div className={`text-4xl ${suitColor}`}>
-        {getSuitSymbol(card.suit)}
+      <div className={`flex items-center justify-center h-full text-3xl sm:text-4xl ${colorClass}`} aria-hidden="true">
+        {symbol}
       </div>
-      {/* Bottom-right corner: rank + suit, rotated 180° */}
-      <div className="absolute bottom-2 right-2 flex flex-col items-center rotate-180">
-        <span className={`text-lg font-bold ${suitColor}`}>
-          {card.rank.toUpperCase()}
-        </span>
-        <span className={`text-2xl ${suitColor}`}>
-          {getSuitSymbol(card.suit)}
-        </span>
+
+      {/* Bottom-right: rank + suit, rotated 180° */}
+      <div className={`absolute bottom-1.5 right-2 flex flex-col items-center leading-none rotate-180 ${colorClass}`} aria-hidden="true">
+        <span className="text-base font-bold">{label}</span>
+        <span className="text-sm">{symbol}</span>
       </div>
     </button>
   );

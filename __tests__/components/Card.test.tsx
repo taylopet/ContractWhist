@@ -11,9 +11,10 @@ const diamond10: CardType = { suit: 'diamonds', rank: '10' };
 const club2: CardType = { suit: 'clubs', rank: '2' };
 
 describe('Card', () => {
-  it('renders the rank uppercased', () => {
+  it('renders the rank abbreviated (ace → A)', () => {
     render(<Card card={heartAce} />);
-    expect(screen.getAllByText('ACE').length).toBeGreaterThan(0);
+    // KAN-10: rank is now abbreviated (A, K, Q, J) not uppercased full word
+    expect(screen.getAllByText('A').length).toBeGreaterThan(0);
   });
 
   it('renders hearts suit symbol', () => {

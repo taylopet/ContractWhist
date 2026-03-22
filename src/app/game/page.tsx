@@ -1,20 +1,4 @@
-// ============================================================
-// app/game/page.tsx — Game route (/game)
-//
-// Entry point for the game UI. Wraps everything in GameProvider
-// so all child components can access game state via useGame().
-//
-// Component tree:
-//   GamePage
-//   └── GameProvider      (context + reducer — game state lives here)
-//       └── GameBoard     (orchestrates phase-based rendering)
-//           ├── SetupPhase        (phase: 'setup')
-//           ├── GameTable         (all active phases)
-//           ├── PlayerHand        (all active phases)
-//           ├── BiddingPhase      (phase: 'bidding', current player only)
-//           └── [finished overlay] (phase: 'finished')
-// ============================================================
-
+// KAN-10/35: Game route — wraps GameProvider, renders main content target
 'use client';
 
 import React from 'react';
@@ -24,7 +8,7 @@ import GameBoard from '@/components/GameBoard';
 export default function GamePage() {
   return (
     <GameProvider>
-      <main className="min-h-screen bg-gray-100">
+      <main id="main-content" className="min-h-dvh bg-slate-950 dark:bg-slate-950">
         <GameBoard />
       </main>
     </GameProvider>
