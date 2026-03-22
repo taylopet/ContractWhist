@@ -1,35 +1,12 @@
 // ============================================================
 // components/PlayerHand.tsx — Current player's hand of cards
 //
-// Fixed to the bottom of the screen. Cards overlap horizontally
-// (each card offset -2rem left from previous) to fit large hands.
-// Hovering a card lifts it up (-translate-y-4) for visual selection.
-//
-// Props:
-//   cards           — the cards to display
-//   onCardPlay      — called when a card is clicked (only if allowed)
-//   isCurrentPlayer — if false, all cards are disabled
-//   canPlayCard     — per-card callback; returns false if follow-suit
-//                     rule prevents playing this card
-//
-// Stacking / z-index:
-//   Cards are stacked with z-index = array index, so later cards in
-//   the hand render on top. The order cards appear depends on Player.hand
-//   order which is set by dealCards() — currently no sorting is applied.
-//
-// Known gaps / TODOs:
-//   - Cards are not sorted by suit/rank. Players may want automatic
-//     sorting (e.g. by suit then rank) for easier hand reading.
-//   - The -2rem overlap is fixed regardless of hand size; for 13 cards
-//     in a 4-player game the hand may extend off-screen on small displays.
-//   - No visual indicator for which cards are playable vs greyed out
-//     beyond the Card component's disabled opacity.
-//   - BiddingPhase renders on top of this component when it's bidding
-//     phase — they share the bottom of screen fixed position.
+// KAN-46: cards sorted by suit (spades→hearts→diamonds→clubs)
+//         then by rank descending (Ace high) before rendering
 // ============================================================
 
 import React from 'react';
-import { Card as CardType } from '@/types/game';
+import { Card as CardType, Rank } from '@/types/game';
 import Card from './Card';
 
 interface PlayerHandProps {
@@ -39,23 +16,41 @@ interface PlayerHandProps {
   canPlayCard: (card: CardType) => boolean;
 }
 
+// KAN-46: sort order — alternating colours: spades, hearts, diamonds, clubs
+const SUIT_ORDER: Record<string, number> = {
+  spades: 0,
+  hearts: 1,
+  diamonds: 2,
+  clubs: 3,
+};
+
+const RANK_VALUES: Record<Rank, number> = {
+  ace: 14, king: 13, queen: 12, jack: 11,
+  '10': 10, '9': 9, '8': 8, '7': 7,
+  '6': 6, '5': 5, '4': 4, '3': 3, '2': 2,
+};
+
 const PlayerHand: React.FC<PlayerHandProps> = ({
   cards,
   onCardPlay,
   isCurrentPlayer,
   canPlayCard,
 }) => {
+  // KAN-46: sort by suit then rank descending
+  const sortedCards = [...cards].sort((a, b) => {
+    const suitDiff = SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit];
+    if (suitDiff !== 0) return suitDiff;
+    return RANK_VALUES[b.rank] - RANK_VALUES[a.rank];
+  });
+
   return (
     <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-gray-100 to-transparent">
       <div className="flex justify-center gap-2 overflow-x-auto pb-4">
-        {cards.map((card, index) => (
+        {sortedCards.map((card, index) => (
           <div
             key={`${card.suit}-${card.rank}`}
             className="transform hover:-translate-y-4 transition-transform duration-200"
-            style={{
-              marginLeft: index > 0 ? '-2rem' : '0', // overlap cards for fan effect
-              zIndex: index,
-            }}
+            style={{ marginLeft: index > 0 ? '-2rem' : '0', zIndex: index }}
           >
             <Card
               card={card}

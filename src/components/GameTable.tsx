@@ -1,33 +1,7 @@
 // ============================================================
-// components/GameTable.tsx — Visual game table with player positions
+// components/GameTable.tsx — Visual game table
 //
-// Renders the green felt playing surface. Shows:
-//   - Trump suit indicator (top-right corner)
-//   - Cards played in the current trick (centre)
-//   - Player info boxes (name, bid, tricks, score) around the table
-//
-// Player positioning:
-//   getPlayerPosition() assigns positions: bottom, left, top, right
-//   based on player array index. This works for 2–4 players:
-//     1 player  → bottom only
-//     2 players → bottom + left (top/right unused)
-//     3 players → bottom, left, top
-//     4 players → bottom, left, top, right
-//   NOTE: position[0] is always 'bottom', so player at index 0 is
-//   always shown at the bottom. This should be the local human player.
-//
-// Current trick layout:
-//   Cards are arranged in a 2-column CSS grid that is rotated -45°,
-//   with each card counter-rotated +45° to stay upright. This creates
-//   a diamond-like arrangement. Works visually for up to 4 cards.
-//
-// Known gaps / TODOs:
-//   - Player.score shown here is never updated (see types/game.ts note).
-//     Should display GameState.scores[player.id] instead.
-//   - The trick layout doesn't indicate which player played which card.
-//   - No animation when a trick is won/cleared.
-//   - For 2-3 player games some position slots are unused, leaving
-//     the table looking sparse.
+// KAN-41: displays scores from GameState.scores (not Player.score)
 // ============================================================
 
 import React from 'react';
@@ -39,6 +13,7 @@ interface GameTableProps {
   currentTrick: CardType[];
   currentPlayerIndex: number;
   trumpSuit: string | null;
+  scores: Record<string, number>; // KAN-41: use GameState.scores
 }
 
 const GameTable: React.FC<GameTableProps> = ({
@@ -46,39 +21,35 @@ const GameTable: React.FC<GameTableProps> = ({
   currentTrick,
   currentPlayerIndex,
   trumpSuit,
+  scores,
 }) => {
   // Maps player array index to a table edge position.
   // Player 0 is always 'bottom' (the local player's perspective).
   const getPlayerPosition = (playerIndex: number) => {
     const positions = ['bottom', 'left', 'top', 'right'];
-    const numPlayers = players.length;
-    const adjustedIndex = (playerIndex + numPlayers) % numPlayers;
-    return positions[adjustedIndex];
+    return positions[playerIndex % 4];
   };
 
   return (
     <div className="relative w-full h-[calc(100vh-12rem)] bg-green-800 rounded-3xl shadow-inner p-8">
-      {/* Trump suit indicator — top-right corner */}
+      {/* Trump suit indicator */}
       {trumpSuit && (
         <div className="absolute top-4 right-4 bg-white rounded-lg p-3 shadow-md">
-          <p className="text-sm font-semibold">Trump Suit:</p>
+          <p className="text-sm font-semibold">Trump:</p>
           <p className={`text-2xl ${trumpSuit === 'hearts' || trumpSuit === 'diamonds' ? 'text-red-600' : 'text-black'}`}>
             {trumpSuit === 'hearts' ? '♥' : trumpSuit === 'diamonds' ? '♦' : trumpSuit === 'clubs' ? '♣' : '♠'}
           </p>
         </div>
       )}
 
-      {/* Current trick — centred, diamond layout via -45°/+45° rotation */}
+      {/* Current trick — centred diamond layout */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="grid grid-cols-2 gap-4 transform -rotate-45">
           {currentTrick.map((card, index) => (
             <div
               key={`${card.suit}-${card.rank}`}
               className="transform rotate-45"
-              style={{
-                gridColumn: index % 2 + 1,
-                gridRow: Math.floor(index / 2) + 1,
-              }}
+              style={{ gridColumn: index % 2 + 1, gridRow: Math.floor(index / 2) + 1 }}
             >
               <Card card={card} disabled={true} />
             </div>
@@ -86,7 +57,7 @@ const GameTable: React.FC<GameTableProps> = ({
         </div>
       </div>
 
-      {/* Player info boxes — positioned at table edges */}
+      {/* Player info boxes */}
       {players.map((player, index) => {
         const position = getPlayerPosition(index);
         const isCurrentPlayer = index === currentPlayerIndex;
@@ -94,6 +65,7 @@ const GameTable: React.FC<GameTableProps> = ({
         return (
           <div
             key={player.id}
+            data-testid={`player-info-${player.id}`}
             className={`
               absolute p-4 bg-white rounded-lg shadow-md
               ${position === 'top' ? 'top-4 left-1/2 -translate-x-1/2' : ''}
@@ -108,13 +80,9 @@ const GameTable: React.FC<GameTableProps> = ({
               <p className="text-sm text-gray-600">
                 {player.bid !== null ? `Bid: ${player.bid}` : 'Bidding...'}
               </p>
-              <p className="text-sm text-gray-600">
-                Tricks: {player.tricks}
-              </p>
-              {/* TODO: replace player.score with scores[player.id] from context */}
-              <p className="text-sm font-medium">
-                Score: {player.score}
-              </p>
+              <p className="text-sm text-gray-600">Tricks: {player.tricks}</p>
+              {/* KAN-41: use GameState.scores not Player.score */}
+              <p className="text-sm font-medium">Score: {scores[player.id] ?? 0}</p>
             </div>
           </div>
         );
