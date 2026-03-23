@@ -1,12 +1,11 @@
 // ============================================================
 // types/game.ts — Core domain types for Contract Whist
 //
-// Architecture note:
-//   All game state flows from these types. GameState is the
-//   single source of truth held in GameContext via useReducer.
-//
-// KAN-47: added trickLeaderIndex to correctly map trick winner
-// KAN-41: Player.score removed — use GameState.scores instead
+// KAN-47: added trickLeaderIndex
+// KAN-41: Player.score removed — use GameState.scores
+// KAN-65: trickCompleted + trickWinnerIndex for reveal delay
+// KAN-66: RoundModifier, RoundConfig, roundSchedule, handRevealed
+// KAN-69: gameId, joinCode, myPlayerId for multi-device play
 // ============================================================
 
 export type Suit = 'hearts' | 'diamonds' | 'clubs' | 'spades';
@@ -18,23 +17,44 @@ export interface Card {
 }
 
 export interface Player {
-  id: string;       // format: "player1", "player2", etc. — assigned sequentially on join
+  id: string;       // "player1", "player2", etc. — assigned on join
   name: string;
-  hand: Card[];
-  tricks: number;   // tricks won in the current round; reset to 0 each round
-  bid: number | null; // null means this player hasn't bid yet this round
+  hand: Card[];     // empty for remote opponents (server hides their cards)
+  tricks: number;   // tricks won this round; reset each round
+  bid: number | null;
+}
+
+// KAN-66: per-round game modifier
+export type RoundModifier = 'normal' | 'no-trumps' | 'half-blind' | 'blind';
+
+export interface RoundConfig {
+  cardCount: number;
+  modifier: RoundModifier;
 }
 
 export interface GameState {
   players: Player[];
-  currentPlayerIndex: number;   // index into players[] for whose turn it is
-  trickLeaderIndex: number;     // KAN-47: index of player who led the current trick
-  trumpSuit: Suit | null;       // set from top of remaining deck after deal in START_ROUND
-  deck: Card[];                 // remaining undealt cards (used only as trump source post-deal)
-  currentTrick: Card[];         // cards played so far in the current trick, in play order
-  round: number;                // starts at 1; game ends after all pyramid rounds
+  currentPlayerIndex: number;   // whose turn it is
+  trickLeaderIndex: number;     // KAN-47: who led the current trick
+  trumpSuit: Suit | null;
+  deck: Card[];
+  currentTrick: Card[];
+  round: number;                // 1-based; indexes into roundSchedule
   // phase flow: setup → joining → bidding → playing → scoring → (bidding | finished)
   phase: 'setup' | 'joining' | 'bidding' | 'playing' | 'scoring' | 'finished';
-  scores: Record<string, number>; // keyed by player.id; cumulative across rounds
-  maxPlayers: number | null;    // set during SETUP_GAME; 2, 3, or 4
+  scores: Record<string, number>;
+  maxPlayers: number | null;
+
+  // KAN-65: trick reveal — true while completed trick is displayed before clearing
+  trickCompleted: boolean;
+  trickWinnerIndex: number;     // valid while trickCompleted is true
+
+  // KAN-66: round schedule set at game creation
+  roundSchedule: RoundConfig[];
+  handRevealed: boolean;        // false during bidding for half-blind/blind rounds
+
+  // KAN-69: multi-device fields (null in local/hot-seat mode)
+  gameId: string | null;
+  joinCode: string | null;
+  myPlayerId: string | null;    // identifies the local player's slot
 }

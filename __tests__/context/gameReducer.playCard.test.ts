@@ -1,15 +1,13 @@
 // KAN-56: tests for gameReducer — PLAY_CARD action
+// KAN-65: trick completion now sets trickCompleted=true (reveal delay);
+//         ADVANCE_AFTER_TRICK clears the trick and advances play.
 import { gameReducer } from '@/context/GameContext';
 import { GameState, Card, Player } from '@/types/game';
 
 const c = (suit: Card['suit'], rank: Card['rank']): Card => ({ suit, rank });
 
 const makePlayer = (id: string, hand: Card[], bid = 0, tricks = 0): Player => ({
-  id,
-  name: id,
-  hand,
-  tricks,
-  bid,
+  id, name: id, hand, tricks, bid,
 });
 
 const twoPlayerPlaying: GameState = {
@@ -26,6 +24,13 @@ const twoPlayerPlaying: GameState = {
   phase: 'playing',
   scores: {},
   maxPlayers: 2,
+  trickCompleted: false,
+  trickWinnerIndex: 0,
+  roundSchedule: [],
+  handRevealed: true,
+  gameId: null,
+  joinCode: null,
+  myPlayerId: null,
 };
 
 describe('PLAY_CARD', () => {
@@ -73,7 +78,6 @@ describe('PLAY_CARD', () => {
   });
 
   it('no-op if card violates follow-suit rule', () => {
-    // player1 has hearts, trick led with hearts — can't play spades
     const afterP1 = gameReducer(twoPlayerPlaying, {
       type: 'PLAY_CARD',
       payload: { playerId: 'player1', card: c('hearts', 'ace') },
@@ -86,31 +90,52 @@ describe('PLAY_CARD', () => {
     expect(state.currentTrick).toHaveLength(1); // trick not extended
   });
 
-  it('credits trick to winner when trick complete (KAN-47)', () => {
-    // player2 has only spades (void in hearts) so can trump the lead
-    const voidInHeartsState: GameState = {
+  it('KAN-65: sets trickCompleted=true when trick is complete (does not clear immediately)', () => {
+    // player2 has only spades (void in hearts) so can trump
+    const voidState: GameState = {
       ...twoPlayerPlaying,
       players: [
         makePlayer('player1', [c('hearts', 'ace'), c('hearts', '2')]),
-        makePlayer('player2', [c('spades', 'ace'), c('spades', '2')]), // void in hearts
+        makePlayer('player2', [c('spades', 'ace'), c('spades', '2')]),
       ],
     };
-    const afterP1 = gameReducer(voidInHeartsState, {
+    const afterP1 = gameReducer(voidState, {
       type: 'PLAY_CARD',
       payload: { playerId: 'player1', card: c('hearts', 'ace') },
     });
-    // player2 is void in hearts — spades ace is valid
     const state = gameReducer(afterP1, {
       type: 'PLAY_CARD',
       payload: { playerId: 'player2', card: c('spades', 'ace') },
     });
-    expect(state.currentTrick).toHaveLength(0); // trick cleared
-    expect(state.players[1].tricks).toBe(1);    // player2 won (trump)
+    // KAN-65: trick stays visible until ADVANCE_AFTER_TRICK
+    expect(state.trickCompleted).toBe(true);
+    expect(state.currentTrick).toHaveLength(2); // NOT cleared yet
+    expect(state.players[1].tricks).toBe(1);    // winner already credited
+  });
+
+  it('KAN-65: ADVANCE_AFTER_TRICK clears trick and advances play (credits trick to winner)', () => {
+    const voidState: GameState = {
+      ...twoPlayerPlaying,
+      players: [
+        makePlayer('player1', [c('hearts', 'ace'), c('hearts', '2')]),
+        makePlayer('player2', [c('spades', 'ace'), c('spades', '2')]),
+      ],
+    };
+    const afterP1 = gameReducer(voidState, {
+      type: 'PLAY_CARD',
+      payload: { playerId: 'player1', card: c('hearts', 'ace') },
+    });
+    const afterTrick = gameReducer(afterP1, {
+      type: 'PLAY_CARD',
+      payload: { playerId: 'player2', card: c('spades', 'ace') },
+    });
+    const state = gameReducer(afterTrick, { type: 'ADVANCE_AFTER_TRICK' });
+    expect(state.currentTrick).toHaveLength(0); // cleared
+    expect(state.trickCompleted).toBe(false);
     expect(state.currentPlayerIndex).toBe(1);   // winner leads next
   });
 
-  it('transitions to scoring when all hands empty', () => {
-    // Deal exactly 1 card each
+  it('transitions to scoring after ADVANCE_AFTER_TRICK when all hands empty', () => {
     const oneCardState: GameState = {
       ...twoPlayerPlaying,
       players: [
@@ -122,10 +147,14 @@ describe('PLAY_CARD', () => {
       type: 'PLAY_CARD',
       payload: { playerId: 'player1', card: c('hearts', 'ace') },
     });
-    const state = gameReducer(afterP1, {
+    const afterTrick = gameReducer(afterP1, {
       type: 'PLAY_CARD',
       payload: { playerId: 'player2', card: c('spades', 'ace') },
     });
+    // Still playing during reveal
+    expect(afterTrick.phase).toBe('playing');
+    // After advance
+    const state = gameReducer(afterTrick, { type: 'ADVANCE_AFTER_TRICK' });
     expect(state.phase).toBe('scoring');
   });
 });

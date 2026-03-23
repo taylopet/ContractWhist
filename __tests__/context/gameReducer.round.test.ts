@@ -21,6 +21,14 @@ const stateWith2Players: GameState = {
   phase: 'joining',
   scores: {},
   maxPlayers: 2,
+  // KAN-65/66/69 fields — required by updated type
+  trickCompleted: false,
+  trickWinnerIndex: 0,
+  roundSchedule: [],   // empty → reducer falls back to pyramid formula
+  handRevealed: true,
+  gameId: null,
+  joinCode: null,
+  myPlayerId: null,
 };
 
 describe('START_ROUND', () => {

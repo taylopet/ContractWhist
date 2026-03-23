@@ -13,6 +13,13 @@ const initialState: GameState = {
   phase: 'setup',
   scores: {},
   maxPlayers: null,
+  trickCompleted: false,
+  trickWinnerIndex: 0,
+  roundSchedule: [],
+  handRevealed: true,
+  gameId: null,
+  joinCode: null,
+  myPlayerId: null,
 };
 
 describe('SETUP_GAME', () => {
