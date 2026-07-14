@@ -1,5 +1,6 @@
 // KAN-58: component tests for BiddingPhase
 // Updated for KAN-10/35 UI redesign — new text/aria-label conventions
+// KAN-71: last-bidder forbidden bid UI tests
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -56,5 +57,37 @@ describe('BiddingPhase', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Bid 0' }));
     await userEvent.click(screen.getByTestId('bid-submit-button'));
     expect(onBidSubmit).toHaveBeenCalledWith(0);
+  });
+});
+
+// KAN-71: last-bidder constraint (bust-bid prevention)
+describe('BiddingPhase — forbiddenBid', () => {
+  it('forbidden bid button is disabled', () => {
+    render(<BiddingPhase currentPlayer={player} maxBid={5} onBidSubmit={jest.fn()} forbiddenBid={2} />);
+    const btn = screen.getByRole('button', { name: /Bid 2.*bust/i });
+    expect(btn).toBeDisabled();
+  });
+
+  it('forbidden bid button cannot be selected', async () => {
+    const onBidSubmit = jest.fn();
+    render(<BiddingPhase currentPlayer={player} maxBid={5} onBidSubmit={onBidSubmit} forbiddenBid={2} />);
+    await userEvent.click(screen.getByRole('button', { name: /Bid 2.*bust/i }));
+    // submit button should still say "Select a bid" — nothing was selected
+    expect(screen.getByRole('button', { name: /Select a bid/i })).toBeDisabled();
+    expect(onBidSubmit).not.toHaveBeenCalled();
+  });
+
+  it('non-forbidden bids remain enabled', () => {
+    render(<BiddingPhase currentPlayer={player} maxBid={3} onBidSubmit={jest.fn()} forbiddenBid={1} />);
+    expect(screen.getByRole('button', { name: 'Bid 0' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Bid 2' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Bid 3' })).not.toBeDisabled();
+  });
+
+  it('no forbidden bid when forbiddenBid is null (non-last bidder)', () => {
+    render(<BiddingPhase currentPlayer={player} maxBid={3} onBidSubmit={jest.fn()} forbiddenBid={null} />);
+    [0, 1, 2, 3].forEach(n =>
+      expect(screen.getByRole('button', { name: `Bid ${n}` })).not.toBeDisabled()
+    );
   });
 });

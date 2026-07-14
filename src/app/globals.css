@@ -127,6 +127,18 @@ body {
   outline: 3px solid var(--accent);
 }
 
+/* ── KAN-70: Mobile / safe area ── */
+/* Extend body to fill behind iOS notch + home indicator */
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Improve tap responsiveness on touch devices */
+button, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -151,8 +151,8 @@ export const determineWinner = (trick: Card[], trumpSuit: Suit | null): number =
   return winningIdx;
 };
 
-// Scoring: exact bid = 10 + bid; any miss = -(abs difference)
+// KAN-75: Scoring: exact bid = 10 + bid; miss = tricks won (no penalty)
 export const calculateScore = (bid: number, tricks: number): number => {
   if (bid === tricks) return 10 + bid;
-  return -Math.abs(bid - tricks);
+  return tricks;
 };

@@ -38,9 +38,9 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled = false, selected =
       aria-label={ariaLabel}
       aria-pressed={selected}
       className={[
-        // Base card styles
+        // Base card styles — KAN-70: smaller on mobile
         'relative bg-white rounded-lg border select-none',
-        'w-20 h-28 sm:w-24 sm:h-36',
+        'w-14 h-20 sm:w-20 sm:h-28',
         // Shadow and border
         selected
           ? 'border-indigo-500 shadow-[0_0_0_2px_theme(colors.indigo.500)]'
@@ -61,7 +61,7 @@ const Card: React.FC<CardProps> = ({ card, onClick, disabled = false, selected =
       </div>
 
       {/* Centre: large suit symbol */}
-      <div className={`flex items-center justify-center h-full text-3xl sm:text-4xl ${colorClass}`} aria-hidden="true">
+      <div className={`flex items-center justify-center h-full text-xl sm:text-3xl ${colorClass}`} aria-hidden="true">
         {symbol}
       </div>
 

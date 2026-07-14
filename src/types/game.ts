@@ -32,6 +32,13 @@ export interface RoundConfig {
   modifier: RoundModifier;
 }
 
+// KAN-75: per-round result stored in roundHistory for the scoresheet
+export interface RoundResult {
+  roundIndex: number;   // 0-based index into roundSchedule
+  trumpSuit: Suit | null;
+  perPlayer: Record<string, { bid: number; tricks: number; score: number }>;
+}
+
 export interface GameState {
   players: Player[];
   currentPlayerIndex: number;   // whose turn it is
@@ -52,6 +59,9 @@ export interface GameState {
   // KAN-66: round schedule set at game creation
   roundSchedule: RoundConfig[];
   handRevealed: boolean;        // false during bidding for half-blind/blind rounds
+
+  // KAN-75: history of completed rounds for the scoresheet
+  roundHistory: RoundResult[];
 
   // KAN-69: multi-device fields (null in local/hot-seat mode)
   gameId: string | null;

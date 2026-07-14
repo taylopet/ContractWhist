@@ -1,34 +1,42 @@
 // KAN-69: GET /api/games/[id]/events — SSE stream of player-filtered game state
-// Each connected client receives state updates in real time.
-// Token passed as query param: ?token=xxx (EventSource doesn't support headers)
+// KAN-74: structured logging for connect, disconnect, and errors
 import { NextRequest } from 'next/server';
 import { gameStore } from '@/lib/gameStore';
+import { log, generateRequestId } from '@/lib/logger';
 
 export const runtime = 'nodejs';
-// Disable Next.js response caching for SSE
 export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = generateRequestId();
   const { id } = await params;
   const token = req.nextUrl.searchParams.get('token') ?? '';
   const gameId = id.toUpperCase();
+  const playerId = (await gameStore.getPlayerIdByToken(gameId, token)) ?? undefined;
 
-  if (!gameStore.isValidToken(gameId, token)) {
+  if (!await gameStore.isValidToken(gameId, token)) {
+    log.warn('sse.auth_failed', { requestId, gameId, statusCode: 401, detail: { reason: 'invalid_token' } });
     return new Response('Unauthorized', { status: 401 });
   }
+
+  log.info('sse.connected', { requestId, gameId, playerId });
 
   const encoder = new TextEncoder();
   let unsubscribe: (() => void) | null = null;
 
   const stream = new ReadableStream({
-    start(controller) {
+    async start(controller) {
       // Send initial state immediately
-      const state = gameStore.getPlayerState(gameId, token);
+      const state = await gameStore.getPlayerState(gameId, token);
       if (state) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(state)}\n\n`));
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(state)}\n\n`));
+        } catch (err) {
+          log.error('sse.initial_state_error', err, { requestId, gameId, playerId });
+        }
       }
 
       // Subscribe to future updates
@@ -36,7 +44,7 @@ export async function GET(
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(updatedState)}\n\n`));
         } catch {
-          // Client disconnected
+          // Client disconnected during write — unsubscribe silently
           unsubscribe?.();
         }
       });
@@ -54,10 +62,12 @@ export async function GET(
       req.signal.addEventListener('abort', () => {
         clearInterval(keepaliveInterval);
         unsubscribe?.();
+        log.info('sse.disconnected', { requestId, gameId, playerId });
       });
     },
     cancel() {
       unsubscribe?.();
+      log.info('sse.cancelled', { requestId, gameId, playerId });
     },
   });
 
@@ -66,7 +76,7 @@ export async function GET(
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no', // disable Nginx buffering
+      'X-Accel-Buffering': 'no',
     },
   });
 }

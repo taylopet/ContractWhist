@@ -1,7 +1,8 @@
-// KAN-35/36/37: Root layout — dark mode default, ThemeProvider, skip link, no-FODT script
-import type { Metadata } from "next";
+// KAN-35/36/37/70/74: Root layout — dark mode, ThemeProvider, skip link, mobile viewport, error boundary
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,6 +18,20 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Contract Whist",
   description: "A classic trick-taking card game for 2–4 players",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Contract Whist',
+  },
+};
+
+// KAN-70: mobile viewport — prevent zoom on input focus, honour notch/home-bar
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -42,7 +57,9 @@ export default function RootLayout({
           Skip to main content
         </a>
         <ThemeProvider>
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </ThemeProvider>
       </body>
     </html>

@@ -1,18 +1,7 @@
-// KAN-69: /game — local hot-seat game (single device, no server required)
-// For multi-device, host uses this page then shares the join code.
-// The SetupPhase now routes through the GameBoard for configuration.
-'use client';
-
-import React from 'react';
-import { GameProvider } from '@/context/GameContext';
-import GameBoard from '@/components/GameBoard';
+// KAN-72: /game (no id) is no longer used — redirect to home.
+// All games are now server-side and accessed via /game/[id].
+import { redirect } from 'next/navigation';
 
 export default function GamePage() {
-  return (
-    <GameProvider>
-      <main id="main-content" className="min-h-dvh bg-slate-950">
-        <GameBoard />
-      </main>
-    </GameProvider>
-  );
+  redirect('/');
 }

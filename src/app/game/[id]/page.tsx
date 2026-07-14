@@ -3,6 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { RemoteGameProvider } from '@/context/RemoteGameContext';
 import GameBoard from '@/components/GameBoard';
 
@@ -41,12 +42,12 @@ export default function RemoteGamePage({ params }: GamePageProps) {
       <main className="min-h-dvh bg-slate-950 flex items-center justify-center p-6">
         <div className="bg-slate-900 border border-red-800 rounded-2xl p-8 max-w-sm text-center">
           <p className="text-red-400 mb-4">{error}</p>
-          <a
+          <Link
             href="/"
             className="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold transition-colors"
           >
             Back to Home
-          </a>
+          </Link>
         </div>
       </main>
     );

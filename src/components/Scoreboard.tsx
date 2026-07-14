@@ -23,23 +23,24 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
   return (
     <aside
       aria-label="Scoreboard"
-      className="bg-slate-900/95 border-b border-slate-700 px-3 py-2"
+      className="bg-slate-900/95 border-b border-slate-700 px-2 py-1.5 sm:px-3 sm:py-2"
     >
       {/* Round indicator */}
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">
           Round {round} / {totalRounds}
         </span>
-        <div className="flex gap-0.5">
-          {Array.from({ length: totalRounds }, (_, i) => (
+        {/* KAN-70: cap to 20 visible pips to avoid overflow on long schedules */}
+        <div className="flex gap-0.5 overflow-hidden max-w-[120px] sm:max-w-none">
+          {Array.from({ length: Math.min(totalRounds, 20) }, (_, i) => (
             <div
               key={i}
               aria-hidden="true"
               className={[
-                'h-1 rounded-full transition-colors',
-                i < round - 1 ? 'w-2 bg-indigo-600' :
-                i === round - 1 ? 'w-3 bg-indigo-400' :
-                'w-2 bg-slate-700',
+                'h-1 rounded-full transition-colors shrink-0',
+                i < round - 1 ? 'w-1.5 bg-indigo-600' :
+                i === round - 1 ? 'w-2 bg-indigo-400' :
+                'w-1.5 bg-slate-700',
               ].join(' ')}
             />
           ))}

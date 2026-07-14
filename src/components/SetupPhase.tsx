@@ -7,6 +7,7 @@ import { buildRoundSchedule, applyStandardModifiers } from '@/lib/gameUtils';
 
 interface SetupPhaseProps {
   onSetupComplete: (playerCount: number, playerName: string, roundSchedule: RoundConfig[]) => void;
+  onCancel?: () => void; // KAN-72: optional back-to-home escape
 }
 
 type Preset = 'normal' | 'standard' | 'custom';
@@ -23,7 +24,7 @@ const MODIFIER_SHORT: Record<RoundModifier, string> = {
   'normal': 'N', 'no-trumps': 'NT', 'half-blind': 'HB', 'blind': 'B',
 };
 
-const SetupPhase: React.FC<SetupPhaseProps> = ({ onSetupComplete }) => {
+const SetupPhase: React.FC<SetupPhaseProps> = ({ onSetupComplete, onCancel }) => {
   // Step 1
   const [step, setStep] = useState<Step>('players');
   const [playerCount, setPlayerCount] = useState(2);
@@ -142,6 +143,15 @@ const SetupPhase: React.FC<SetupPhaseProps> = ({ onSetupComplete }) => {
             >
               Next: Game Type →
             </button>
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="w-full py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                ← Back
+              </button>
+            )}
           </form>
         </div>
       </div>

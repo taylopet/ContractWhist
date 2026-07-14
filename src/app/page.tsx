@@ -1,20 +1,44 @@
-// KAN-69: Landing page — create game or join with code
+// KAN-69/72: Landing page — create game (server-side) or join with code
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import SetupPhase from '@/components/SetupPhase';
+import { RoundConfig } from '@/types/game';
+import { apiPath } from '@/lib/apiPath';
 
 export default function Home() {
   const router = useRouter();
-  const [mode, setMode] = useState<'home' | 'join'>('home');
+  const [mode, setMode] = useState<'home' | 'join' | 'setup' | 'creating'>('home');
   const [joinCode, setJoinCode] = useState('');
   const [joinName, setJoinName] = useState('');
   const [joinError, setJoinError] = useState('');
   const [isJoining, setIsJoining] = useState(false);
+  const [createError, setCreateError] = useState('');
 
-  const handleNewGame = () => {
-    // KAN-69: go to /game — the local GameProvider handles setup from there
-    router.push('/game');
+  // KAN-72: SetupPhase calls this; we POST to API and redirect host to /game/[id]
+  const handleSetupComplete = async (playerCount: number, playerName: string, roundSchedule: RoundConfig[]) => {
+    setMode('creating');
+    setCreateError('');
+    try {
+      const res = await fetch(apiPath('/api/games'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostName: playerName, playerCount, roundSchedule }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        setCreateError(error ?? 'Failed to create game');
+        setMode('home');
+        return;
+      }
+      const { gameId, token } = await res.json() as { gameId: string; token: string };
+      sessionStorage.setItem(`cw-token-${gameId}`, token);
+      router.push(`/game/${gameId}?token=${encodeURIComponent(token)}`);
+    } catch {
+      setCreateError('Network error — please try again');
+      setMode('home');
+    }
   };
 
   const handleJoin = async (e: React.FormEvent) => {
@@ -24,7 +48,7 @@ export default function Home() {
     setJoinError('');
 
     try {
-      const res = await fetch(`/api/games/${joinCode.trim().toUpperCase()}/join`, {
+      const res = await fetch(apiPath(`/api/games/${joinCode.trim().toUpperCase()}/join`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerName: joinName.trim() }),
@@ -63,22 +87,32 @@ export default function Home() {
           Classic trick-taking · 2–4 players · Each on their own device
         </p>
 
-        {mode === 'home' ? (
+        {createError && (
+          <p className="text-sm text-red-400 text-center mb-4" role="alert">{createError}</p>
+        )}
+
+        {mode === 'creating' && (
+          <p className="text-slate-400 animate-pulse mb-4">Creating game…</p>
+        )}
+
+        {(mode === 'home' || mode === 'creating') ? (
           <div className="space-y-3">
             <button
-              onClick={handleNewGame}
-              className="block w-full py-4 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold text-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+              onClick={() => { setMode('setup'); setCreateError(''); }}
+              disabled={mode === 'creating'}
+              className="block w-full py-4 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold text-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               New Game
             </button>
             <button
-              onClick={() => setMode('join')}
-              className="block w-full py-4 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-semibold text-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+              onClick={() => { setMode('join'); setCreateError(''); }}
+              disabled={mode === 'creating'}
+              className="block w-full py-4 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-semibold text-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Join Game
             </button>
           </div>
-        ) : (
+        ) : mode === 'join' ? (
           <form onSubmit={handleJoin} className="space-y-4 text-left">
             <div>
               <label htmlFor="join-code" className="block text-sm font-medium text-slate-300 mb-2">
@@ -137,11 +171,16 @@ export default function Home() {
               ← Back
             </button>
           </form>
-        )}
+        ) : null}
       </div>
 
+      {/* KAN-72: SetupPhase renders as a full-screen overlay above home content */}
+      {mode === 'setup' && (
+        <SetupPhase onSetupComplete={handleSetupComplete} onCancel={() => setMode('home')} />
+      )}
+
       <p className="mt-6 text-slate-600 text-sm">
-        Hot-seat or multi-device · 2–4 players
+        Multi-device · 2–4 players · Each on their own browser
       </p>
     </main>
   );

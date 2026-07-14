@@ -2,7 +2,8 @@
 // lib/gameStore.ts — Server-side authoritative game state
 //
 // KAN-69: in-memory singleton; persists for Node.js process lifetime.
-// Uses globalThis to survive Next.js HMR reloads in development.
+// KAN-76: Redis write-through via ioredis; lazy-loads games on demand
+//         so state survives App Service restarts.
 //
 // Responsibilities:
 //   - Create / track games by gameId
@@ -15,6 +16,7 @@
 import { GameState, Card, RoundConfig } from '@/types/game';
 import { gameReducer, GameAction, initialState } from './gameReducer';
 import { buildRoundSchedule } from './gameUtils';
+import { log } from './logger';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,7 +31,17 @@ interface GameEntry {
   createdAt: number;
 }
 
+// Serialisable form stored in Redis (Map → plain object)
+interface SerializedEntry {
+  state: GameState;
+  tokens: Record<string, string>;
+  createdAt: number;
+}
+
 type Subscriber = (state: GameState) => void;
+
+const GAME_TTL_SECONDS = 4 * 60 * 60; // 4 hours
+const redisKey = (gameId: string) => `cw:game:${gameId}`;
 
 // ── Join-code generation ──────────────────────────────────────────────────────
 
@@ -42,19 +54,69 @@ const generateToken = () =>
 
 // ── Store class ───────────────────────────────────────────────────────────────
 
-class GameStore {
+export class GameStore {
   private games = new Map<string, GameEntry>();
   private subscribers = new Map<string, Set<Subscriber>>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private redis: any = null;
+
+  constructor() {
+    if (process.env.REDIS_URL) {
+      // Dynamic require avoids ioredis being bundled for edge/browser targets
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const Redis = require('ioredis');
+      this.redis = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 3 });
+      this.redis.on('error', (err: Error) =>
+        log.error('redis.connection_error', err, {})
+      );
+    }
+  }
+
+  // ── Redis helpers ────────────────────────────────────────────────────────────
+
+  /** Load game from in-memory cache; fall back to Redis on miss. */
+  private async loadGame(gameId: string): Promise<GameEntry | undefined> {
+    if (this.games.has(gameId)) return this.games.get(gameId)!;
+    if (!this.redis) return undefined;
+    try {
+      const data: string | null = await this.redis.get(redisKey(gameId));
+      if (!data) return undefined;
+      const s: SerializedEntry = JSON.parse(data);
+      const entry: GameEntry = {
+        state: s.state,
+        tokens: new Map(Object.entries(s.tokens)),
+        createdAt: s.createdAt,
+      };
+      this.games.set(gameId, entry);
+      return entry;
+    } catch (err) {
+      log.error('redis.load_error', err as Error, { gameId });
+      return undefined;
+    }
+  }
+
+  /** Persist game to Redis (fire-and-forget). */
+  private persist(gameId: string, entry: GameEntry): void {
+    if (!this.redis) return;
+    const s: SerializedEntry = {
+      state: entry.state,
+      tokens: Object.fromEntries(entry.tokens),
+      createdAt: entry.createdAt,
+    };
+    this.redis
+      .setex(redisKey(gameId), GAME_TTL_SECONDS, JSON.stringify(s))
+      .catch((err: Error) => log.error('redis.persist_error', err, { gameId }));
+  }
 
   // ── Create ──────────────────────────────────────────────────────────────────
 
-  createGame(
+  async createGame(
     hostName: string,
     playerCount: number,
     roundSchedule?: RoundConfig[]
-  ): { gameId: string; joinCode: string; token: string } {
+  ): Promise<{ gameId: string; joinCode: string; token: string }> {
     const joinCode = generateCode();
-    const gameId = joinCode; // use same value for simplicity
+    const gameId = joinCode;
 
     const schedule = roundSchedule ?? buildRoundSchedule(7);
     const action: GameAction = {
@@ -72,17 +134,28 @@ class GameStore {
     };
 
     this.games.set(gameId, entry);
+    this.persist(gameId, entry);
+    log.info('game.created', { gameId, detail: { hostName, playerCount, joinCode, roundCount: schedule.length } });
     return { gameId, joinCode, token };
   }
 
   // ── Join ────────────────────────────────────────────────────────────────────
 
-  joinGame(joinCode: string, playerName: string): { gameId: string; token: string } | null {
+  async joinGame(joinCode: string, playerName: string): Promise<{ gameId: string; token: string } | null> {
     const gameId = joinCode.toUpperCase();
-    const entry = this.games.get(gameId);
-    if (!entry) return null;
-    if (entry.state.phase !== 'joining') return null;
-    if (entry.state.maxPlayers !== null && entry.state.players.length >= entry.state.maxPlayers) return null;
+    const entry = await this.loadGame(gameId);
+    if (!entry) {
+      log.warn('game.join_rejected', { gameId, detail: { reason: 'game_not_found', playerName } });
+      return null;
+    }
+    if (entry.state.phase !== 'joining') {
+      log.warn('game.join_rejected', { gameId, detail: { reason: 'wrong_phase', phase: entry.state.phase, playerName } });
+      return null;
+    }
+    if (entry.state.maxPlayers !== null && entry.state.players.length >= entry.state.maxPlayers) {
+      log.warn('game.join_rejected', { gameId, detail: { reason: 'game_full', playerCount: entry.state.players.length, maxPlayers: entry.state.maxPlayers, playerName } });
+      return null;
+    }
 
     const newAction: GameAction = { type: 'JOIN_GAME', payload: { name: playerName } };
     const newState = gameReducer(entry.state, newAction);
@@ -92,63 +165,77 @@ class GameStore {
     entry.tokens.set(token, playerId);
     entry.state = newState;
 
+    this.persist(gameId, entry);
+    log.info('game.player_joined', { gameId, playerId, detail: { playerName, totalJoined: newState.players.length, maxPlayers: newState.maxPlayers } });
     this.notify(gameId);
     return { gameId, token };
   }
 
   // ── Dispatch ─────────────────────────────────────────────────────────────────
 
-  dispatch(gameId: string, token: string, action: GameAction): boolean {
-    const entry = this.games.get(gameId);
-    if (!entry) return false;
+  async dispatch(gameId: string, token: string, action: GameAction): Promise<boolean> {
+    const entry = await this.loadGame(gameId);
+    if (!entry) {
+      log.warn('action.rejected', { gameId, action: action.type, detail: { reason: 'game_not_found' } });
+      return false;
+    }
 
-    // Verify token is known for this game
     const playerId = entry.tokens.get(token);
-    if (!playerId) return false;
+    if (!playerId) {
+      log.warn('action.rejected', { gameId, action: action.type, detail: { reason: 'invalid_token' } });
+      return false;
+    }
 
-    // Inject playerId into actions that need it (security: client can't spoof)
+    const phaseBefore = entry.state.phase;
+
     let safeAction = action;
     if (action.type === 'PLAY_CARD' || action.type === 'PLACE_BID') {
       safeAction = { ...action, payload: { ...action.payload, playerId } } as GameAction;
     }
 
     const newState = gameReducer(entry.state, safeAction);
+    const phaseAfter = newState.phase;
 
-    // If trickCompleted just became true, schedule auto-advance after 1.5s
     if (!entry.state.trickCompleted && newState.trickCompleted) {
+      log.info('action.trick_advance_scheduled', { gameId, playerId, action: action.type, detail: { delayMs: 1500 } });
       setTimeout(() => {
         this.dispatch(gameId, token, { type: 'ADVANCE_AFTER_TRICK' });
       }, 1500);
     }
 
     entry.state = newState;
+    this.persist(gameId, entry);
+    log.info('action.dispatched', { gameId, playerId, action: action.type, phaseBefore, phaseAfter });
     this.notify(gameId);
     return true;
   }
 
   // ── Read state (player-filtered) ─────────────────────────────────────────────
 
-  getPlayerState(gameId: string, token: string): GameState | null {
-    const entry = this.games.get(gameId);
+  async getPlayerState(gameId: string, token: string): Promise<GameState | null> {
+    const entry = await this.loadGame(gameId);
     if (!entry) return null;
     const myPlayerId = entry.tokens.get(token) ?? null;
     return this.filterState(entry.state, myPlayerId);
   }
 
-  getGameState(gameId: string): GameState | null {
-    return this.games.get(gameId)?.state ?? null;
+  async getGameState(gameId: string): Promise<GameState | null> {
+    const entry = await this.loadGame(gameId);
+    return entry?.state ?? null;
   }
 
-  getPlayerIdByToken(gameId: string, token: string): string | null {
-    return this.games.get(gameId)?.tokens.get(token) ?? null;
+  async getPlayerIdByToken(gameId: string, token: string): Promise<string | null> {
+    const entry = await this.loadGame(gameId);
+    return entry?.tokens.get(token) ?? null;
   }
 
-  isValidToken(gameId: string, token: string): boolean {
-    return this.games.get(gameId)?.tokens.has(token) ?? false;
+  async isValidToken(gameId: string, token: string): Promise<boolean> {
+    const entry = await this.loadGame(gameId);
+    return entry?.tokens.has(token) ?? false;
   }
 
-  getLobbyInfo(gameId: string): { playerCount: number; maxPlayers: number | null; phase: string } | null {
-    const entry = this.games.get(gameId);
+  async getLobbyInfo(gameId: string): Promise<{ playerCount: number; maxPlayers: number | null; phase: string } | null> {
+    const entry = await this.loadGame(gameId);
     if (!entry) return null;
     return {
       playerCount: entry.state.players.length,
@@ -157,13 +244,12 @@ class GameStore {
     };
   }
 
-  // ── Pub/sub for SSE ──────────────────────────────────────────────────────────
+  // ── Pub/sub for SSE (in-process; clients reconnect after restart) ─────────────
 
   subscribe(gameId: string, token: string, cb: (state: GameState) => void): () => void {
     let set = this.subscribers.get(gameId);
     if (!set) { set = new Set(); this.subscribers.set(gameId, set); }
 
-    // Wrap callback to inject player-filtered state
     const wrapper: Subscriber = (fullState: GameState) => {
       const myPlayerId = this.games.get(gameId)?.tokens.get(token) ?? null;
       cb(this.filterState(fullState, myPlayerId));
@@ -176,12 +262,29 @@ class GameStore {
 
   cleanupOldGames(maxAgeMs = 4 * 60 * 60 * 1000) {
     const now = Date.now();
+    let removed = 0;
     for (const [id, entry] of this.games) {
       if (now - entry.createdAt > maxAgeMs) {
         this.games.delete(id);
         this.subscribers.delete(id);
+        this.redis?.del(redisKey(id)).catch(() => {});
+        removed++;
       }
     }
+    if (removed > 0) {
+      log.info('game.cleanup', { detail: { removedCount: removed, maxAgeMs } });
+    }
+  }
+
+  getActiveGamesSummary() {
+    return Array.from(this.games.entries()).map(([gameId, entry]) => ({
+      gameId,
+      phase: entry.state.phase,
+      playerCount: entry.state.players.length,
+      maxPlayers: entry.state.maxPlayers,
+      round: entry.state.round,
+      createdAt: new Date(entry.createdAt).toISOString(),
+    }));
   }
 
   // ── Private ──────────────────────────────────────────────────────────────────
@@ -193,7 +296,6 @@ class GameStore {
     if (set) set.forEach(cb => cb(entry.state));
   }
 
-  /** Hide other players' hands; set myPlayerId on state */
   private filterState(state: GameState, myPlayerId: string | null): GameState {
     return {
       ...state,
@@ -212,7 +314,6 @@ declare global {
 }
 if (!globalThis._cwGameStore) {
   globalThis._cwGameStore = new GameStore();
-  // Clean up stale games every hour
   setInterval(() => globalThis._cwGameStore?.cleanupOldGames(), 60 * 60 * 1000);
 }
 

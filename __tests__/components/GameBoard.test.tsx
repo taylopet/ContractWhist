@@ -29,6 +29,7 @@ const baseState: GameState = {
   trickWinnerIndex: 0,
   roundSchedule: buildRoundSchedule(7),
   handRevealed: true,
+  roundHistory: [],    // KAN-75
   gameId: null,
   joinCode: null,
   myPlayerId: null,
@@ -43,6 +44,8 @@ const mockFns = {
   advanceTrick: jest.fn(),   // KAN-65
   endRound: jest.fn(),
   resetGame: jest.fn(),
+  connectionStatus: 'connected',
+  myPlayerId: null,
 };
 
 beforeEach(() => {

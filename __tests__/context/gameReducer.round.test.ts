@@ -21,11 +21,12 @@ const stateWith2Players: GameState = {
   phase: 'joining',
   scores: {},
   maxPlayers: 2,
-  // KAN-65/66/69 fields — required by updated type
+  // KAN-65/66/69/75 fields — required by updated type
   trickCompleted: false,
   trickWinnerIndex: 0,
   roundSchedule: [],   // empty → reducer falls back to pyramid formula
   handRevealed: true,
+  roundHistory: [],    // KAN-75
   gameId: null,
   joinCode: null,
   myPlayerId: null,
@@ -96,6 +97,52 @@ describe('PLACE_BID', () => {
   });
 });
 
+// KAN-71: last-bidder constraint (bust-bid prevention)
+describe('PLACE_BID — last-bidder constraint', () => {
+  const afterStart = gameReducer(stateWith2Players, { type: 'START_ROUND' });
+  const cardsDealt = afterStart.players[0].hand.length;
+
+  it('rejects the forbidden bid for the last bidder', () => {
+    // Player1 bids 1, player2 is last — forbidden bid = cardsDealt - 1
+    const stateAfterP1 = gameReducer(afterStart, {
+      type: 'PLACE_BID',
+      payload: { playerId: 'player1', bid: 1 },
+    });
+    const forbidden = cardsDealt - 1;
+    const result = gameReducer(stateAfterP1, {
+      type: 'PLACE_BID',
+      payload: { playerId: 'player2', bid: forbidden },
+    });
+    // state unchanged — bid was rejected
+    expect(result.players[1].bid).toBeNull();
+    expect(result.phase).toBe('bidding');
+  });
+
+  it('accepts a non-forbidden bid for the last bidder', () => {
+    const stateAfterP1 = gameReducer(afterStart, {
+      type: 'PLACE_BID',
+      payload: { playerId: 'player1', bid: 1 },
+    });
+    const forbidden = cardsDealt - 1;
+    const allowed = forbidden === 0 ? 1 : 0; // pick any bid that isn't forbidden
+    const result = gameReducer(stateAfterP1, {
+      type: 'PLACE_BID',
+      payload: { playerId: 'player2', bid: allowed },
+    });
+    expect(result.players[1].bid).toBe(allowed);
+    expect(result.phase).toBe('playing');
+  });
+
+  it('does not restrict the first bidder (not last)', () => {
+    // Player1 bids cardsDealt (would be forbidden if they were last, but they're not)
+    const result = gameReducer(afterStart, {
+      type: 'PLACE_BID',
+      payload: { playerId: 'player1', bid: cardsDealt },
+    });
+    expect(result.players[0].bid).toBe(cardsDealt);
+  });
+});
+
 describe('END_ROUND', () => {
   const scoringState: GameState = {
     ...stateWith2Players,
@@ -110,7 +157,7 @@ describe('END_ROUND', () => {
   it('accumulates scores correctly', () => {
     const state = gameReducer(scoringState, { type: 'END_ROUND' });
     expect(state.scores['player1']).toBe(12); // 10 + 2 (exact bid)
-    expect(state.scores['player2']).toBe(-1); // bid 1 won 0, miss by 1
+    expect(state.scores['player2']).toBe(0);  // KAN-75: bid 1 won 0, miss → tricks won = 0
   });
 
   it('increments round', () => {

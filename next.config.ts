@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  basePath: '/fun',
+  output: 'standalone',
+  env: {
+    NEXT_PUBLIC_BASE_PATH: '/fun',
+  },
 };
 
 export default nextConfig;

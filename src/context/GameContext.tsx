@@ -31,6 +31,7 @@ export interface GameContextType {
   gameId?: string;
   joinCode?: string;
   myPlayerId?: string;
+  connectionStatus?: 'connecting' | 'connected' | 'reconnecting'; // KAN-72
 }
 
 export const GameContext = createContext<GameContextType | undefined>(undefined);

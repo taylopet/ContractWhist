@@ -9,7 +9,7 @@
 // KAN-69: initialState includes gameId / joinCode / myPlayerId fields
 // ============================================================
 
-import { GameState, Player, Card, RoundConfig } from '@/types/game';
+import { GameState, Player, Card, RoundConfig, RoundResult } from '@/types/game';
 import {
   createDeck,
   dealCards,
@@ -47,6 +47,7 @@ export const initialState: GameState = {
   trickWinnerIndex: 0,      // KAN-65
   roundSchedule: buildRoundSchedule(7), // KAN-66: default 7-card pyramid
   handRevealed: true,       // KAN-66: false only during blind/half-blind bidding
+  roundHistory: [],         // KAN-75: completed round results for scoresheet
   gameId: null,             // KAN-69
   joinCode: null,           // KAN-69
   myPlayerId: null,         // KAN-69
@@ -126,6 +127,20 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
 
     case 'PLACE_BID': {
       if (state.phase !== 'bidding') return state;
+
+      // KAN-71: last-bidder constraint — dealer cannot bid the "bust" value
+      const othersHaveBid = state.players
+        .filter(p => p.id !== action.payload.playerId)
+        .every(p => p.bid !== null);
+      if (othersHaveBid) {
+        const cardsDealt = state.players[state.currentPlayerIndex].hand.length;
+        const sumOtherBids = state.players
+          .filter(p => p.id !== action.payload.playerId)
+          .reduce((sum, p) => sum + (p.bid ?? 0), 0);
+        const forbidden = cardsDealt - sumOtherBids;
+        if (action.payload.bid === forbidden) return state; // reject bust bid
+      }
+
       const updatedPlayers = state.players.map(p =>
         p.id === action.payload.playerId ? { ...p, bid: action.payload.bid } : p
       );
@@ -205,6 +220,22 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         }
       });
 
+      // KAN-75: record this round's results for the scoresheet
+      const roundResult: RoundResult = {
+        roundIndex: state.round - 1,
+        trumpSuit: state.trumpSuit,
+        perPlayer: Object.fromEntries(
+          state.players.map(p => [
+            p.id,
+            {
+              bid: p.bid ?? 0,
+              tricks: p.tricks,
+              score: p.bid !== null ? calculateScore(p.bid, p.tricks) : 0,
+            },
+          ])
+        ),
+      };
+
       const nextRound = state.round + 1;
       // KAN-66: use schedule length if populated, else fall back to pyramid formula
       const scheduleLen = state.roundSchedule?.length ?? 0;
@@ -215,6 +246,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return {
         ...state,
         scores: updatedScores,
+        roundHistory: [...state.roundHistory, roundResult],
         round: nextRound,
         phase: nextRound > totalRounds ? 'finished' : 'bidding',
         players: state.players.map(p => ({ ...p, tricks: 0, bid: null, hand: [] })),

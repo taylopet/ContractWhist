@@ -13,8 +13,9 @@ import PlayerHand from './PlayerHand';
 import BiddingPhase from './BiddingPhase';
 import SetupPhase from './SetupPhase';
 import JoinPhase from './JoinPhase';
+import LobbyPhase from './LobbyPhase';
 import ScoringPhase from './ScoringPhase';
-import Scoreboard from './Scoreboard';
+import RoundScoresheet from './RoundScoresheet';
 import { Card as CardType, RoundConfig } from '@/types/game';
 import { isValidPlay } from '@/lib/gameUtils';
 
@@ -24,6 +25,7 @@ const GameBoard = () => {
     setupGame, joinGame, startRound, placeBid, playCard,
     advanceTrick, endRound, resetGame,
     myPlayerId,
+    connectionStatus,
   } = useGame();
 
   const [announcement, setAnnouncement] = useState('');
@@ -114,6 +116,17 @@ const GameBoard = () => {
   if (state.phase === 'joining' && state.maxPlayers !== null) {
     const allJoined = state.players.length === state.maxPlayers;
     if (!allJoined) {
+      // KAN-72: remote game — show lobby with join code; each player on their own device
+      if (state.gameId) {
+        return (
+          <LobbyPhase
+            joinCode={state.joinCode ?? state.gameId}
+            players={state.players}
+            maxPlayers={state.maxPlayers}
+          />
+        );
+      }
+      // Local fallback (not used in normal flow but kept for compatibility)
       const nextPlayerNumber = state.players.length + 1;
       return (
         <JoinPhase
@@ -136,10 +149,27 @@ const GameBoard = () => {
     isMyTurn &&
     (myPlayer ?? currentPlayer)?.bid === null;
 
+  // KAN-71: last-bidder constraint — forbidden bid for the dealer
+  const forbiddenBid = (() => {
+    if (!showBidPanel) return null;
+    const biddingPlayer = myPlayer ?? currentPlayer;
+    if (!biddingPlayer) return null;
+    const allOthersHaveBid = state.players
+      .filter(p => p.id !== biddingPlayer.id)
+      .every(p => p.bid !== null);
+    if (!allOthersHaveBid) return null;
+    const cardsDealt = biddingPlayer.hand.length;
+    const sumOtherBids = state.players
+      .filter(p => p.id !== biddingPlayer.id)
+      .reduce((sum, p) => sum + (p.bid ?? 0), 0);
+    const forbidden = cardsDealt - sumOtherBids;
+    return forbidden >= 0 && forbidden <= cardsDealt ? forbidden : null;
+  })();
+
   return (
     <div className="flex flex-col h-dvh bg-slate-950 text-slate-50 overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 shrink-0">
+      <header className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 bg-slate-900 border-b border-slate-800 shrink-0" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
         <div>
           <h1 className="text-sm font-semibold text-slate-300 tracking-wide">Contract Whist</h1>
           {state.joinCode && (
@@ -151,37 +181,72 @@ const GameBoard = () => {
         <ThemeToggle />
       </header>
 
+      {/* KAN-72: reconnecting banner */}
+      {connectionStatus === 'reconnecting' && (
+        <div
+          role="alert"
+          className="bg-yellow-900/80 border-b border-yellow-700 px-4 py-1.5 text-center text-xs text-yellow-300 animate-pulse shrink-0"
+        >
+          Connection lost — reconnecting…
+        </div>
+      )}
+
       {/* KAN-36: aria-live announcement */}
       <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}
       </div>
 
-      {/* KAN-64: Scoreboard — always visible during active play */}
-      {state.players.length > 0 && (
-        <Scoreboard
-          players={state.players}
-          scores={state.scores}
-          currentPlayerIndex={state.currentPlayerIndex}
-          round={state.round}
-          totalRounds={state.roundSchedule.length}
-        />
-      )}
+      {/* Status banner — plain-English game state for all players */}
+      {(() => {
+        let message = '';
+        if (state.phase === 'bidding' && currentPlayer) {
+          message = `Waiting for ${currentPlayer.name} to bid`;
+        } else if (state.phase === 'playing' && state.trickCompleted) {
+          const winner = state.players[state.trickWinnerIndex];
+          message = `${winner?.name ?? 'Player'} wins the trick!`;
+        } else if (state.phase === 'playing' && currentPlayer) {
+          message = `Waiting for ${currentPlayer.name} to play a card`;
+        }
+        if (!message) return null;
+        return (
+          <div className="shrink-0 bg-emerald-800/60 border-b border-emerald-700/50 px-4 py-1.5 text-center text-sm font-medium text-emerald-100">
+            {message}
+          </div>
+        );
+      })()}
 
-      {/* Game table — flex-1, scrollable */}
-      <div className="flex-1 overflow-hidden p-3 min-h-0">
-        <GameTable
-          players={state.players}
-          currentTrick={state.currentTrick}
-          currentPlayerIndex={state.currentPlayerIndex}
-          trumpSuit={state.trumpSuit}
-          scores={state.scores}
-          trickCompleted={state.trickCompleted}
-          trickWinnerIndex={state.trickWinnerIndex}
-        />
+      {/* KAN-75: Main area — game table left, scoresheet right */}
+      <div className="flex-1 flex flex-row min-h-0 overflow-hidden">
+        {/* Game table */}
+        <div className="flex-1 overflow-hidden p-3 min-h-0">
+          <GameTable
+            players={state.players}
+            currentTrick={state.currentTrick}
+            currentPlayerIndex={state.currentPlayerIndex}
+            trumpSuit={state.trumpSuit}
+            scores={state.scores}
+            trickCompleted={state.trickCompleted}
+            trickWinnerIndex={state.trickWinnerIndex}
+          />
+        </div>
+
+        {/* KAN-75: Round scoresheet panel */}
+        {state.players.length > 0 && state.roundSchedule.length > 0 && (
+          <div className="w-32 sm:w-44 shrink-0 overflow-hidden flex flex-col">
+            <RoundScoresheet
+              players={state.players}
+              roundSchedule={state.roundSchedule}
+              roundHistory={state.roundHistory}
+              currentRound={state.round}
+              currentTrumpSuit={state.trumpSuit}
+              phase={state.phase}
+            />
+          </div>
+        )}
       </div>
 
-      {/* KAN-68: bottom section — hand + optional bid panel, in-flow (no fixed) */}
-      <div className="shrink-0">
+      {/* KAN-68/70: bottom section — hand + optional bid panel, in-flow; pb for iOS home bar */}
+      <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
         {myPlayer && myPlayer.hand.length > 0 && (
           <PlayerHand
             cards={myPlayer.hand}
@@ -198,6 +263,7 @@ const GameBoard = () => {
             currentPlayer={myPlayer ?? currentPlayer!}
             maxBid={(myPlayer ?? currentPlayer)!.hand.length}
             onBidSubmit={handleBidSubmit}
+            forbiddenBid={forbiddenBid}
           />
         )}
       </div>
