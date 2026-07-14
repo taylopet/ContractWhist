@@ -310,7 +310,7 @@ export class GameStore {
 // ── Singleton (survives HMR in development) ───────────────────────────────────
 
 declare global {
-  let _cwGameStore: GameStore | undefined;
+  var _cwGameStore: GameStore | undefined; // eslint-disable-line no-var
 }
 if (!globalThis._cwGameStore) {
   globalThis._cwGameStore = new GameStore();
