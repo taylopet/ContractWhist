@@ -13,7 +13,7 @@
 //   - Pub/sub for SSE: notify subscribers on every state change
 // ============================================================
 
-import { GameState, Card, RoundConfig } from '@/types/game';
+import { GameState, RoundConfig } from '@/types/game';
 import { gameReducer, GameAction, initialState } from './gameReducer';
 import { buildRoundSchedule } from './gameUtils';
 import { log } from './logger';
@@ -310,7 +310,7 @@ export class GameStore {
 // ── Singleton (survives HMR in development) ───────────────────────────────────
 
 declare global {
-  var _cwGameStore: GameStore | undefined;
+  let _cwGameStore: GameStore | undefined;
 }
 if (!globalThis._cwGameStore) {
   globalThis._cwGameStore = new GameStore();

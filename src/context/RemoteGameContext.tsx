@@ -3,7 +3,7 @@
 // Injects into the same GameContext so all components use useGame() unchanged.
 'use client';
 
-import { useEffect, useState, useCallback, useRef, ReactNode } from 'react';
+import { useEffect, useState, useCallback, ReactNode } from 'react';
 import { GameState, Card, RoundConfig } from '@/types/game';
 import { GameAction, initialState } from '@/lib/gameReducer';
 import { GameContext, GameContextType } from './GameContext';

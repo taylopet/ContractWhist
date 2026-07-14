@@ -13,7 +13,7 @@
 
 import { createContext, useContext, useReducer, ReactNode } from 'react';
 import { GameState, Card, RoundConfig } from '@/types/game';
-import { gameReducer, initialState, GameAction } from '@/lib/gameReducer';
+import { gameReducer, initialState } from '@/lib/gameReducer';
 
 export { gameReducer } from '@/lib/gameReducer'; // re-export for tests
 

@@ -106,7 +106,7 @@ export const isValidPlay = (
   card: Card,
   hand: Card[],
   currentTrick: Card[],
-  trumpSuit: Suit | null
+  _trumpSuit: Suit | null
 ): boolean => {
   if (currentTrick.length === 0) return true;
   const leadSuit = currentTrick[0].suit;
