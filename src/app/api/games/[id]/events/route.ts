@@ -40,7 +40,7 @@ export async function GET(
       }
 
       // Subscribe to future updates
-      unsubscribe = gameStore.subscribe(gameId, token, (updatedState) => {
+      unsubscribe = gameStore.subscribe(gameId, token, (updatedState: unknown) => {
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(updatedState)}\n\n`));
         } catch {
