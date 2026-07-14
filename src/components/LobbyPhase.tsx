@@ -9,9 +9,11 @@ interface LobbyPhaseProps {
   joinCode: string;
   players: Player[];
   maxPlayers: number;
+  isHost?: boolean;
+  onAddBot?: () => void;
 }
 
-const LobbyPhase: React.FC<LobbyPhaseProps> = ({ joinCode, players, maxPlayers }) => {
+const LobbyPhase: React.FC<LobbyPhaseProps> = ({ joinCode, players, maxPlayers, isHost, onAddBot }) => {
   const [copied, setCopied] = useState(false);
   const waiting = maxPlayers - players.length;
 
@@ -89,7 +91,17 @@ const LobbyPhase: React.FC<LobbyPhaseProps> = ({ joinCode, players, maxPlayers }
           ))}
         </div>
 
-        <p className="text-slate-500 text-xs animate-pulse">
+        {isHost && onAddBot && waiting > 0 && (
+          <button
+            onClick={onAddBot}
+            className="w-full mt-3 px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors"
+            aria-label="Add bot player"
+          >
+            + Add Bot
+          </button>
+        )}
+
+        <p className="text-slate-500 text-xs animate-pulse mt-3">
           {waiting === 1 ? '1 more player needed' : `${waiting} more players needed`}
         </p>
       </div>

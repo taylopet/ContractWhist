@@ -107,10 +107,22 @@ export const RemoteGameProvider = ({ gameId, token, children }: RemoteGameProvid
 
   const resetGame = () => dispatch({ type: 'RESET_GAME' });
 
+  const addBot = useCallback(async () => {
+    try {
+      await fetch(apiPath(`/api/games/${gameId}/bot`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+    } catch (err) {
+      console.error(`[RemoteGame] Failed to add bot for game ${gameId}:`, err);
+    }
+  }, [gameId, token]);
+
   const value: GameContextType = {
     state,
     setupGame, joinGame, startRound, placeBid, playCard,
-    advanceTrick, endRound, resetGame,
+    advanceTrick, endRound, resetGame, addBot,
     gameId,
     joinCode: state.joinCode ?? undefined,
     myPlayerId: state.myPlayerId ?? undefined,

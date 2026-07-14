@@ -23,6 +23,7 @@ import {
 export type GameAction =
   | { type: 'SETUP_GAME'; payload: { playerCount: number; playerName: string; roundSchedule?: RoundConfig[] } }
   | { type: 'JOIN_GAME'; payload: { name: string } }
+  | { type: 'ADD_BOT'; payload: { name: string } }   // KAN-77: add AI player
   | { type: 'START_ROUND' }
   | { type: 'PLACE_BID'; payload: { playerId: string; bid: number } }
   | { type: 'PLAY_CARD'; payload: { playerId: string; card: Card } }
@@ -87,6 +88,24 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return {
         ...state,
         players: [...state.players, newPlayer],
+        phase: 'joining',
+      };
+    }
+
+    case 'ADD_BOT': {
+      if (state.phase !== 'joining') return state;
+      if (state.maxPlayers === null || state.players.length >= state.maxPlayers) return state;
+      const botPlayer: Player = {
+        id: `player${state.players.length + 1}`,
+        name: action.payload.name,
+        hand: [],
+        tricks: 0,
+        bid: null,
+        isBot: true,
+      };
+      return {
+        ...state,
+        players: [...state.players, botPlayer],
         phase: 'joining',
       };
     }

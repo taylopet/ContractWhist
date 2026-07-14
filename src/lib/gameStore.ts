@@ -13,10 +13,17 @@
 //   - Pub/sub for SSE: notify subscribers on every state change
 // ============================================================
 
-import { GameState, RoundConfig } from '@/types/game';
+import { GameState, Card, RoundConfig } from '@/types/game';
 import { gameReducer, GameAction, initialState } from './gameReducer';
 import { buildRoundSchedule } from './gameUtils';
 import { log } from './logger';
+
+const RANK_ORDER: Record<string, number> = {
+  '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+  '8': 8, '9': 9, '10': 10, 'jack': 11, 'queen': 12, 'king': 13, 'ace': 14,
+};
+const rankValue = (rank: string) => RANK_ORDER[rank] ?? 0;
+const sortByRank = (cards: Card[]) => [...cards].sort((a, b) => rankValue(a.rank) - rankValue(b.rank));
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -207,7 +214,89 @@ export class GameStore {
     this.persist(gameId, entry);
     log.info('action.dispatched', { gameId, playerId, action: action.type, phaseBefore, phaseAfter });
     this.notify(gameId);
+    this.checkBotTurn(gameId);
     return true;
+  }
+
+  // ── Bot players ───────────────────────────────────────────────────────────────
+
+  async addBot(gameId: string, hostToken: string): Promise<boolean> {
+    const entry = await this.loadGame(gameId);
+    if (!entry) return false;
+    const hostPlayerId = entry.tokens.get(hostToken);
+    if (hostPlayerId !== 'player1') return false;
+    if (entry.state.phase !== 'joining') return false;
+    if (entry.state.maxPlayers !== null && entry.state.players.length >= entry.state.maxPlayers) return false;
+
+    const botNumber = entry.state.players.filter(p => p.isBot).length + 1;
+    const newState = gameReducer(entry.state, { type: 'ADD_BOT', payload: { name: `Bot ${botNumber}` } });
+    const botPlayerId = newState.players[newState.players.length - 1].id;
+    const botToken = generateToken();
+    entry.tokens.set(botToken, botPlayerId);
+    entry.state = newState;
+    this.persist(gameId, entry);
+    log.info('game.bot_added', { gameId, detail: { botPlayerId, botNumber } });
+    this.notify(gameId);
+    return true;
+  }
+
+  private checkBotTurn(gameId: string): void {
+    const entry = this.games.get(gameId);
+    if (!entry) return;
+    const { state } = entry;
+    if (state.phase !== 'bidding' && state.phase !== 'playing') return;
+    if (state.trickCompleted) return;
+    const current = state.players[state.currentPlayerIndex];
+    if (!current?.isBot) return;
+    setTimeout(() => this.executeBotTurn(gameId, current.id), 600);
+  }
+
+  private executeBotTurn(gameId: string, botPlayerId: string): void {
+    const entry = this.games.get(gameId);
+    if (!entry) return;
+    const { state } = entry;
+    const botToken = [...entry.tokens.entries()].find(([, pid]) => pid === botPlayerId)?.[0];
+    if (!botToken) return;
+    // Re-confirm it is still this bot's turn (state may have changed)
+    const current = state.players[state.currentPlayerIndex];
+    if (current?.id !== botPlayerId) return;
+
+    if (state.phase === 'bidding') {
+      const bid = this.botBid(state, botPlayerId);
+      this.dispatch(gameId, botToken, { type: 'PLACE_BID', payload: { playerId: botPlayerId, bid } });
+    } else if (state.phase === 'playing' && !state.trickCompleted) {
+      const card = this.botCard(state, botPlayerId);
+      if (card) {
+        this.dispatch(gameId, botToken, { type: 'PLAY_CARD', payload: { playerId: botPlayerId, card } });
+      }
+    }
+  }
+
+  private botBid(state: GameState, botPlayerId: string): number {
+    const player = state.players.find(p => p.id === botPlayerId);
+    if (!player) return 0;
+    const cards = player.hand.length;
+    const numPlayers = state.players.length;
+    let bid = Math.max(0, Math.floor(cards / numPlayers));
+    // Last-bidder constraint: cannot make total equal cards
+    const othersHaveBid = state.players.filter(p => p.id !== botPlayerId).every(p => p.bid !== null);
+    if (othersHaveBid) {
+      const sumOthers = state.players.filter(p => p.id !== botPlayerId).reduce((s, p) => s + (p.bid ?? 0), 0);
+      const forbidden = cards - sumOthers;
+      if (bid === forbidden) bid = Math.max(0, bid - 1);
+    }
+    return bid;
+  }
+
+  private botCard(state: GameState, botPlayerId: string): Card | null {
+    const player = state.players.find(p => p.id === botPlayerId);
+    if (!player || player.hand.length === 0) return null;
+    if (state.currentTrick.length > 0) {
+      const leadSuit = state.currentTrick[0].suit;
+      const suitCards = player.hand.filter(c => c.suit === leadSuit);
+      if (suitCards.length > 0) return sortByRank(suitCards)[0];
+    }
+    return sortByRank(player.hand)[0];
   }
 
   // ── Read state (player-filtered) ─────────────────────────────────────────────

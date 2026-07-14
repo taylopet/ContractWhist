@@ -22,6 +22,7 @@ export interface Player {
   hand: Card[];     // empty for remote opponents (server hides their cards)
   tricks: number;   // tricks won this round; reset each round
   bid: number | null;
+  isBot?: boolean;  // KAN-77: true for AI-controlled players
 }
 
 // KAN-66: per-round game modifier

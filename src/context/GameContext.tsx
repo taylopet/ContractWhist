@@ -32,6 +32,7 @@ export interface GameContextType {
   joinCode?: string;
   myPlayerId?: string;
   connectionStatus?: 'connecting' | 'connected' | 'reconnecting'; // KAN-72
+  addBot?: () => Promise<void>; // KAN-77: host adds a bot player
 }
 
 export const GameContext = createContext<GameContextType | undefined>(undefined);

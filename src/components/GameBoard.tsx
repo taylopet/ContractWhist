@@ -23,7 +23,7 @@ const GameBoard = () => {
   const {
     state,
     setupGame, joinGame, startRound, placeBid, playCard,
-    advanceTrick, endRound, resetGame,
+    advanceTrick, endRound, resetGame, addBot,
     myPlayerId,
     connectionStatus,
   } = useGame();
@@ -118,11 +118,14 @@ const GameBoard = () => {
     if (!allJoined) {
       // KAN-72: remote game — show lobby with join code; each player on their own device
       if (state.gameId) {
+        const isHost = myPlayerId === 'player1';
         return (
           <LobbyPhase
             joinCode={state.joinCode ?? state.gameId}
             players={state.players}
             maxPlayers={state.maxPlayers}
+            isHost={isHost}
+            onAddBot={addBot}
           />
         );
       }
