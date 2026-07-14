@@ -106,7 +106,7 @@ export const isValidPlay = (
   card: Card,
   hand: Card[],
   currentTrick: Card[],
-  _trumpSuit: Suit | null
+  _trumpSuit: Suit | null // eslint-disable-line @typescript-eslint/no-unused-vars
 ): boolean => {
   if (currentTrick.length === 0) return true;
   const leadSuit = currentTrick[0].suit;
