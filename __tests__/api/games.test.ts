@@ -74,7 +74,7 @@ describe('POST /api/games', () => {
   });
 
   it('returns 400 when playerCount is out of range', async () => {
-    const req = makeRequest('http://localhost/api/games', { hostName: 'Alice', playerCount: 5 });
+    const req = makeRequest('http://localhost/api/games', { hostName: 'Alice', playerCount: 9 });
     const res = await createGameRoute(req);
     expect(res.status).toBe(400);
   });

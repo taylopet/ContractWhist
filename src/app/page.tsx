@@ -84,7 +84,7 @@ export default function Home() {
 
         <h1 className="text-4xl font-bold text-slate-50 mb-3 tracking-tight">Contract Whist</h1>
         <p className="text-slate-400 text-sm mb-8 leading-relaxed">
-          Classic trick-taking · 2–4 players · Each on their own device
+          Classic trick-taking · 2–8 players · Each on their own device
         </p>
 
         {createError && (
@@ -180,7 +180,7 @@ export default function Home() {
       )}
 
       <p className="mt-6 text-slate-600 text-sm">
-        Multi-device · 2–4 players · Each on their own browser
+        Multi-device · 2–8 players · Each on their own browser
       </p>
     </main>
   );

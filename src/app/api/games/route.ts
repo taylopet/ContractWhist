@@ -24,9 +24,9 @@ export async function POST(req: NextRequest) {
       log.warn('http.bad_request', { requestId, statusCode: 400, detail: { reason: 'hostName missing' } });
       return NextResponse.json({ error: 'hostName required' }, { status: 400 });
     }
-    if (!playerCount || playerCount < 2 || playerCount > 4) {
+    if (!playerCount || playerCount < 2 || playerCount > 8) {
       log.warn('http.bad_request', { requestId, statusCode: 400, detail: { reason: 'invalid playerCount', playerCount } });
-      return NextResponse.json({ error: 'playerCount must be 2–4' }, { status: 400 });
+      return NextResponse.json({ error: 'playerCount must be 2–8' }, { status: 400 });
     }
 
     const { gameId, joinCode, token } = await gameStore.createGame(
