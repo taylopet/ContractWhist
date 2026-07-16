@@ -6,25 +6,41 @@ import userEvent from '@testing-library/user-event';
 import SetupPhase from '@/components/SetupPhase';
 
 describe('SetupPhase — step 1 (players)', () => {
-  it('renders name input and player count buttons', () => {
+  it('renders name input and player count stepper', () => {
     render(<SetupPhase onSetupComplete={jest.fn()} />);
     expect(screen.getByTestId('player-name-input')).toBeInTheDocument();
-    expect(screen.getByTestId('player-count-2')).toBeInTheDocument();
-    expect(screen.getByTestId('player-count-3')).toBeInTheDocument();
-    expect(screen.getByTestId('player-count-4')).toBeInTheDocument();
+    expect(screen.getByTestId('player-count-value')).toBeInTheDocument();
+    expect(screen.getByTestId('player-count-decrease')).toBeInTheDocument();
+    expect(screen.getByTestId('player-count-increase')).toBeInTheDocument();
   });
 
-  it('default selected player count is 2 (has active style)', () => {
+  it('default player count is 2', () => {
     render(<SetupPhase onSetupComplete={jest.fn()} />);
-    expect(screen.getByTestId('player-count-2')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('player-count-3')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('player-count-value')).toHaveTextContent('2');
+    expect(screen.getByTestId('player-count-decrease')).toBeDisabled();
   });
 
-  it('clicking 3 updates selected count', async () => {
+  it('increase button increments the count, up to 8', async () => {
     render(<SetupPhase onSetupComplete={jest.fn()} />);
-    await userEvent.click(screen.getByTestId('player-count-3'));
-    expect(screen.getByTestId('player-count-3')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('player-count-2')).toHaveAttribute('aria-pressed', 'false');
+    const increase = screen.getByTestId('player-count-increase');
+    await userEvent.click(increase);
+    expect(screen.getByTestId('player-count-value')).toHaveTextContent('3');
+    for (let i = 0; i < 10; i++) {
+      await userEvent.click(increase);
+    }
+    expect(screen.getByTestId('player-count-value')).toHaveTextContent('8');
+    expect(increase).toBeDisabled();
+  });
+
+  it('decrease button decrements the count, down to 2', async () => {
+    render(<SetupPhase onSetupComplete={jest.fn()} />);
+    const increase = screen.getByTestId('player-count-increase');
+    const decrease = screen.getByTestId('player-count-decrease');
+    await userEvent.click(increase);
+    await userEvent.click(increase);
+    expect(screen.getByTestId('player-count-value')).toHaveTextContent('4');
+    await userEvent.click(decrease);
+    expect(screen.getByTestId('player-count-value')).toHaveTextContent('3');
   });
 
   it('does not advance to step 2 if name is empty', async () => {
@@ -54,7 +70,8 @@ describe('SetupPhase — step 2 (round config) + submit', () => {
     const onSetupComplete = jest.fn();
     render(<SetupPhase onSetupComplete={onSetupComplete} />);
     await userEvent.type(screen.getByTestId('player-name-input'), '  Alice  ');
-    await userEvent.click(screen.getByTestId('player-count-4'));
+    await userEvent.click(screen.getByTestId('player-count-increase'));
+    await userEvent.click(screen.getByTestId('player-count-increase'));
     await userEvent.click(screen.getByText(/Next: Game Type/i));
     await userEvent.click(screen.getByTestId('start-game-button'));
     expect(onSetupComplete).toHaveBeenCalledWith(

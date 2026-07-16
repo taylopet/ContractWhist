@@ -54,6 +54,25 @@ describe('START_ROUND', () => {
   it('phase becomes bidding', () => {
     expect(state.phase).toBe('bidding');
   });
+
+  it('starts round 1 with player at index 0', () => {
+    expect(state.currentPlayerIndex).toBe(0);
+    expect(state.trickLeaderIndex).toBe(0);
+  });
+
+  it('rotates the starting player on subsequent rounds', () => {
+    const round2State = { ...stateWith2Players, phase: 'bidding' as const, round: 2 };
+    const result = gameReducer(round2State, { type: 'START_ROUND' });
+    expect(result.currentPlayerIndex).toBe(1);
+    expect(result.trickLeaderIndex).toBe(1);
+  });
+
+  it('wraps the starting player index around the player count', () => {
+    const round3State = { ...stateWith2Players, phase: 'bidding' as const, round: 3 };
+    const result = gameReducer(round3State, { type: 'START_ROUND' });
+    expect(result.currentPlayerIndex).toBe(0);
+    expect(result.trickLeaderIndex).toBe(0);
+  });
 });
 
 describe('PLACE_BID', () => {

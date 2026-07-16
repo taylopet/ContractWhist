@@ -372,6 +372,7 @@ export class GameStore {
       playerCount: entry.state.players.length,
       maxPlayers: entry.state.maxPlayers,
       round: entry.state.round,
+      totalRounds: entry.state.roundSchedule.length,
       createdAt: new Date(entry.createdAt).toISOString(),
     }));
   }

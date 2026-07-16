@@ -9,6 +9,7 @@ interface ScoringPhaseProps {
   scores: Record<string, number>;
   round: number;
   onNextRound: () => void;
+  showNextRound?: boolean; // KAN-79: false for non-host clients in remote games
 }
 
 const ScoringPhase: React.FC<ScoringPhaseProps> = ({
@@ -16,6 +17,7 @@ const ScoringPhase: React.FC<ScoringPhaseProps> = ({
   scores,
   round,
   onNextRound,
+  showNextRound = true,
 }) => {
   return (
     <div
@@ -68,18 +70,24 @@ const ScoringPhase: React.FC<ScoringPhaseProps> = ({
           })}
         </div>
 
-        <button
-          onClick={onNextRound}
-          data-testid="next-round-button"
-          className={[
-            'w-full h-14 rounded-xl font-semibold text-lg text-white',
-            'bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700',
-            'transition-colors duration-150',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
-          ].join(' ')}
-        >
-          Next Round
-        </button>
+        {showNextRound ? (
+          <button
+            onClick={onNextRound}
+            data-testid="next-round-button"
+            className={[
+              'w-full h-14 rounded-xl font-semibold text-lg text-white',
+              'bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700',
+              'transition-colors duration-150',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
+            ].join(' ')}
+          >
+            Next Round
+          </button>
+        ) : (
+          <p className="text-center text-slate-400 text-sm py-3">
+            Waiting for host to continue…
+          </p>
+        )}
       </div>
     </div>
   );

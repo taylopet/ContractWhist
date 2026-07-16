@@ -14,6 +14,9 @@ type Preset = 'normal' | 'standard' | 'custom';
 type Shape = 'down' | 'down-up';
 type Step = 'players' | 'rounds';
 
+const MIN_PLAYERS = 2;
+const MAX_PLAYERS = 8;
+
 const MODIFIER_LABEL: Record<RoundModifier, string> = {
   'normal':     'Normal',
   'no-trumps':  'No Trumps',
@@ -137,29 +140,38 @@ const SetupPhase: React.FC<SetupPhaseProps> = ({ onSetupComplete, onCancel }) =>
 
             <div>
               <fieldset>
-                <legend className="block text-sm font-medium text-slate-300 mb-3">
+                <legend className="block text-sm font-medium text-slate-300 mb-3 text-center">
                   Number of Players
                 </legend>
-                <div className="flex justify-center gap-4">
-                  {[2, 3, 4].map(count => (
-                    <button
-                      key={count}
-                      type="button"
-                      onClick={() => setPlayerCount(count)}
-                      aria-pressed={playerCount === count}
-                      data-testid={`player-count-${count}`}
-                      className={[
-                        'w-16 h-16 rounded-xl font-bold text-2xl transition-all duration-150',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
-                        playerCount === count
-                          ? 'bg-blue-600 text-white shadow-lg scale-105'
-                          : 'bg-slate-800 text-slate-300 border border-slate-600 hover:bg-slate-700',
-                      ].join(' ')}
-                    >
-                      {count}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setPlayerCount(c => Math.max(MIN_PLAYERS, c - 1))}
+                    disabled={playerCount <= MIN_PLAYERS}
+                    aria-label="Decrease number of players"
+                    data-testid="player-count-decrease"
+                    className="w-11 h-11 rounded-xl font-bold text-xl bg-slate-800 border border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                  >
+                    −
+                  </button>
+                  <span
+                    className="w-16 h-16 flex items-center justify-center rounded-xl font-bold text-2xl bg-blue-600 text-white shadow-lg"
+                    data-testid="player-count-value"
+                  >
+                    {playerCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPlayerCount(c => Math.min(MAX_PLAYERS, c + 1))}
+                    disabled={playerCount >= MAX_PLAYERS}
+                    aria-label="Increase number of players"
+                    data-testid="player-count-increase"
+                    className="w-11 h-11 rounded-xl font-bold text-xl bg-slate-800 border border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                  >
+                    +
+                  </button>
                 </div>
+                <p className="text-xs text-slate-500 mt-2 text-center">{MIN_PLAYERS}–{MAX_PLAYERS} players</p>
               </fieldset>
             </div>
 

@@ -48,7 +48,7 @@ beforeEach(() => jest.clearAllMocks());
 describe('GET /api/health', () => {
   it('returns status ok with live stats', async () => {
     mockStore.getActiveGamesSummary.mockReturnValue([
-      { gameId: 'A', phase: 'bidding', playerCount: 2, maxPlayers: 2, round: 3, createdAt: new Date().toISOString() },
+      { gameId: 'A', phase: 'bidding', playerCount: 2, maxPlayers: 2, round: 3, totalRounds: 7, createdAt: new Date().toISOString() },
     ]);
     const res = await healthRoute();
     expect(res.status).toBe(200);
@@ -67,7 +67,7 @@ describe('GET /api/health', () => {
 describe('GET /api/admin/games', () => {
   it('returns active games summary', async () => {
     const games = [
-      { gameId: 'WOLF42', phase: 'playing', playerCount: 3, maxPlayers: 3, round: 2, createdAt: '2026-01-01T00:00:00.000Z' },
+      { gameId: 'WOLF42', phase: 'playing', playerCount: 3, maxPlayers: 3, round: 2, totalRounds: 7, createdAt: '2026-01-01T00:00:00.000Z' },
     ];
     mockStore.getActiveGamesSummary.mockReturnValue(games);
     const res = await adminGamesRoute();

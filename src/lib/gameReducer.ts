@@ -111,6 +111,11 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     }
 
     case 'START_ROUND': {
+      // KAN-79: idempotency — only deal when we're in a valid pre-deal state
+      const isInitialStart = state.phase === 'joining';
+      const isNextRound = state.phase === 'bidding' && state.players.every(p => p.hand.length === 0);
+      if (!isInitialStart && !isNextRound) return state;
+
       // KAN-66: use roundSchedule when available, else fall back to pyramid formula
       const scheduleIndex = state.round - 1;
       const roundConfig = state.roundSchedule?.[scheduleIndex];
@@ -130,14 +135,17 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       // KAN-66: hand is hidden during bidding for blind/half-blind
       const handRevealed = modifier !== 'blind' && modifier !== 'half-blind';
 
+      // Deal/lead rotates each round so the same player doesn't always start
+      const startingPlayerIndex = (state.round - 1) % state.players.length;
+
       return {
         ...state,
         players: playersWithCards.map(p => ({ ...p, tricks: 0, bid: null })),
         deck: remainingDeck,
         trumpSuit,
         currentTrick: [],
-        currentPlayerIndex: 0,
-        trickLeaderIndex: 0,
+        currentPlayerIndex: startingPlayerIndex,
+        trickLeaderIndex: startingPlayerIndex,
         trickCompleted: false,
         handRevealed,
         phase: 'bidding',
@@ -232,6 +240,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     }
 
     case 'END_ROUND': {
+      if (state.phase !== 'scoring') return state; // KAN-79: guard against double-dispatch
       const updatedScores = { ...state.scores };
       state.players.forEach(p => {
         if (p.bid !== null) {

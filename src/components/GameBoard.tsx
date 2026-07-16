@@ -40,6 +40,9 @@ const GameBoard = () => {
 
   // KAN-39: auto-deal when all players joined
   useEffect(() => {
+    // KAN-79: non-host clients must not dispatch START_ROUND (filterState hides hands,
+    // so players[0].hand.length is always 0 for them — would cause re-deal loop)
+    if (myPlayerId && myPlayerId !== 'player1') return;
     if (
       state.phase === 'joining' &&
       state.maxPlayers !== null &&
@@ -52,6 +55,7 @@ const GameBoard = () => {
 
   // KAN-40: start next round after END_ROUND
   useEffect(() => {
+    if (myPlayerId && myPlayerId !== 'player1') return; // KAN-79: host-only
     if (
       state.phase === 'bidding' &&
       state.players.length > 0 &&
@@ -278,6 +282,7 @@ const GameBoard = () => {
           scores={state.scores}
           round={state.round}
           onNextRound={endRound}
+          showNextRound={!myPlayerId || myPlayerId === 'player1'}
         />
       )}
 
