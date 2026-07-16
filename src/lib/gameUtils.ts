@@ -70,11 +70,11 @@ export const buildRoundSchedule = (peak: number, shape: 'down' | 'down-up' = 'do
   return cardCounts.map(cardCount => ({ cardCount, modifier: 'normal' as RoundModifier }));
 };
 
-const TRUMP_CYCLE: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
+const TRUMP_CYCLE: Suit[] = ['hearts', 'clubs', 'diamonds', 'spades'];
 
 /**
  * Assign rotating trump suits to a schedule.
- * No-trumps rounds get trumpSuit=null; all others cycle hearts→diamonds→clubs→spades.
+ * No-trumps rounds get trumpSuit=null; all others cycle hearts→clubs→diamonds→spades.
  */
 export const assignTrumpSuits = (schedule: RoundConfig[]): RoundConfig[] => {
   let idx = 0;

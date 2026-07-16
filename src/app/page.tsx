@@ -178,10 +178,6 @@ export default function Home() {
       {mode === 'setup' && (
         <SetupPhase onSetupComplete={handleSetupComplete} onCancel={() => setMode('home')} />
       )}
-
-      <p className="mt-6 text-slate-600 text-sm">
-        Multi-device · 2–8 players · Each on their own browser
-      </p>
     </main>
   );
 }

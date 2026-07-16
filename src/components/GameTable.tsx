@@ -28,14 +28,21 @@ const GameTable: React.FC<GameTableProps> = ({
   trickCompleted = false,
   trickWinnerIndex = -1,
 }) => {
-  const getPositionClasses = (index: number) => {
-    switch (index % 4) {
-      case 0: return 'bottom-3 left-1/2 -translate-x-1/2';
-      case 1: return 'left-3 top-1/2 -translate-y-1/2';
-      case 2: return 'top-3 left-1/2 -translate-x-1/2';
-      case 3: return 'right-3 top-1/2 -translate-y-1/2';
-      default: return '';
-    }
+  // Equally spaced around the table, starting at bottom-centre (index 0)
+  // and going clockwise — matches the old fixed bottom/left/top/right
+  // positions exactly when there are 4 players, but scales to any count
+  // instead of wrapping back onto index 0 past 4 players.
+  const getPositionStyle = (index: number, total: number): React.CSSProperties => {
+    const angle = ((90 + (360 / total) * index) * Math.PI) / 180;
+    const rx = 44; // % of container width
+    const ry = 42; // % of container height
+    const left = 50 + rx * Math.cos(angle);
+    const top = 50 + ry * Math.sin(angle);
+    return {
+      left: `${left}%`,
+      top: `${top}%`,
+      transform: 'translate(-50%, -50%)',
+    };
   };
 
   const trumpIsRed = trumpSuit === 'hearts' || trumpSuit === 'diamonds';
@@ -91,7 +98,8 @@ const GameTable: React.FC<GameTableProps> = ({
           <div
             key={player.id}
             data-testid={`player-info-${player.id}`}
-            className={['absolute z-10', getPositionClasses(index)].join(' ')}
+            className="absolute z-10"
+            style={getPositionStyle(index, players.length)}
           >
             <div className={[
               'rounded-xl px-3 py-2 text-center min-w-[5rem]',

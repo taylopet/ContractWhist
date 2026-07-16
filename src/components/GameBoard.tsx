@@ -222,10 +222,13 @@ const GameBoard = () => {
         );
       })()}
 
-      {/* KAN-75: Main area — game table left, scoresheet right */}
+      {/* KAN-75: Main area — game table left, scoresheet right.
+          With >4 players the scoresheet needs more room for its per-player
+          columns, so it grows to a 60/40 table/scoresheet split instead of
+          the narrow fixed sidebar used for smaller games. */}
       <div className="flex-1 flex flex-row min-h-0 overflow-hidden">
         {/* Game table */}
-        <div className="flex-1 overflow-hidden p-3 min-h-0">
+        <div className={`overflow-hidden p-3 min-h-0 ${state.players.length > 4 ? 'flex-[6]' : 'flex-1'}`}>
           <GameTable
             players={state.players}
             currentTrick={state.currentTrick}
@@ -239,7 +242,13 @@ const GameBoard = () => {
 
         {/* KAN-75: Round scoresheet panel */}
         {state.players.length > 0 && state.roundSchedule.length > 0 && (
-          <div className="w-32 sm:w-44 shrink-0 overflow-hidden flex flex-col">
+          <div
+            className={
+              state.players.length > 4
+                ? 'flex-[4] overflow-hidden flex flex-col'
+                : 'w-32 sm:w-44 shrink-0 overflow-hidden flex flex-col'
+            }
+          >
             <RoundScoresheet
               players={state.players}
               roundSchedule={state.roundSchedule}
