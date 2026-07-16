@@ -2,8 +2,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { RoundConfig, RoundModifier } from '@/types/game';
-import { buildRoundSchedule, applyStandardModifiers } from '@/lib/gameUtils';
+import { RoundConfig, RoundModifier, Suit } from '@/types/game';
+import { buildRoundSchedule, applyStandardModifiers, assignTrumpSuits } from '@/lib/gameUtils';
 
 interface SetupPhaseProps {
   onSetupComplete: (playerCount: number, playerName: string, roundSchedule: RoundConfig[]) => void;
@@ -11,6 +11,7 @@ interface SetupPhaseProps {
 }
 
 type Preset = 'normal' | 'standard' | 'custom';
+type Shape = 'down' | 'down-up';
 type Step = 'players' | 'rounds';
 
 const MODIFIER_LABEL: Record<RoundModifier, string> = {
@@ -24,6 +25,25 @@ const MODIFIER_SHORT: Record<RoundModifier, string> = {
   'normal': 'N', 'no-trumps': 'NT', 'half-blind': 'HB', 'blind': 'B',
 };
 
+const SUIT_ICON: Record<Suit, string> = {
+  hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠',
+};
+
+const SUIT_COLOR: Record<Suit, string> = {
+  hearts: 'text-red-400', diamonds: 'text-red-400',
+  clubs: 'text-slate-300', spades: 'text-slate-300',
+};
+
+function roundCount(peak: number, shape: Shape) {
+  return shape === 'down' ? peak : 2 * peak - 1;
+}
+
+function rebuild(peak: number, shape: Shape, preset: Preset): RoundConfig[] {
+  const base = buildRoundSchedule(peak, shape);
+  const withMods = preset === 'standard' ? applyStandardModifiers(base) : base;
+  return assignTrumpSuits(withMods);
+}
+
 const SetupPhase: React.FC<SetupPhaseProps> = ({ onSetupComplete, onCancel }) => {
   // Step 1
   const [step, setStep] = useState<Step>('players');
@@ -32,31 +52,44 @@ const SetupPhase: React.FC<SetupPhaseProps> = ({ onSetupComplete, onCancel }) =>
 
   // Step 2 — KAN-66
   const [peak, setPeak] = useState(7);
+  const [shape, setShape] = useState<Shape>('down-up');
   const [preset, setPreset] = useState<Preset>('standard');
   const [schedule, setSchedule] = useState<RoundConfig[]>(() =>
-    applyStandardModifiers(buildRoundSchedule(7))
+    rebuild(7, 'down-up', 'standard')
   );
 
+  const maxPeak = Math.floor(52 / playerCount);
+
   const handlePeakChange = (newPeak: number) => {
+    if (newPeak < 3 || newPeak > maxPeak) return;
     setPeak(newPeak);
-    const base = buildRoundSchedule(newPeak);
-    setSchedule(preset === 'standard' ? applyStandardModifiers(base) : base);
+    setSchedule(rebuild(newPeak, shape, preset));
+  };
+
+  const handleShapeChange = (newShape: Shape) => {
+    setShape(newShape);
+    setSchedule(rebuild(peak, newShape, preset));
   };
 
   const handlePresetChange = (p: Preset) => {
     setPreset(p);
-    const base = buildRoundSchedule(peak);
-    if (p === 'standard') setSchedule(applyStandardModifiers(base));
-    else setSchedule(base); // normal or custom (custom starts as all-normal then user edits)
+    setSchedule(rebuild(peak, shape, p));
   };
 
   const handleModifierChange = (index: number, modifier: RoundModifier) => {
-    setSchedule(prev => prev.map((r, i) => i === index ? { ...r, modifier } : r));
+    setSchedule(prev => assignTrumpSuits(prev.map((r, i) => i === index ? { ...r, modifier } : r)));
   };
 
   const handleStep1 = (e: React.FormEvent) => {
     e.preventDefault();
-    if (playerName.trim()) setStep('rounds');
+    if (!playerName.trim()) return;
+    // clamp peak if player count changed
+    const clampedPeak = Math.min(peak, Math.floor(52 / playerCount));
+    if (clampedPeak !== peak) {
+      setPeak(clampedPeak);
+      setSchedule(rebuild(clampedPeak, shape, preset));
+    }
+    setStep('rounds');
   };
 
   const handleSubmit = () => {
@@ -172,28 +205,56 @@ const SetupPhase: React.FC<SetupPhaseProps> = ({ onSetupComplete, onCancel }) =>
         </h2>
         <p className="text-slate-400 text-sm text-center mb-6">Step 2 of 2 — Round schedule</p>
 
-        {/* Peak cards */}
+        {/* Peak cards — up/down stepper */}
         <div className="mb-5">
           <p className="text-sm font-medium text-slate-300 mb-2">Peak cards per round</p>
-          <div className="flex gap-3">
-            {[3, 5, 7].map(p => (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => handlePeakChange(peak - 1)}
+              disabled={peak <= 3}
+              aria-label="Decrease peak cards"
+              className="w-11 h-11 rounded-xl font-bold text-xl bg-slate-800 border border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+            >
+              −
+            </button>
+            <div className="flex-1 text-center">
+              <span className="text-3xl font-bold text-slate-50">{peak}</span>
+              <span className="text-slate-400 text-sm ml-2">cards</span>
+              <p className="text-xs text-slate-500 mt-0.5">{roundCount(peak, shape)} rounds</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handlePeakChange(peak + 1)}
+              disabled={peak >= maxPeak}
+              aria-label="Increase peak cards"
+              className="w-11 h-11 rounded-xl font-bold text-xl bg-slate-800 border border-slate-600 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+            >
+              +
+            </button>
+          </div>
+          <p className="text-xs text-slate-500 mt-1.5 text-center">max {maxPeak} for {playerCount} players</p>
+        </div>
+
+        {/* Schedule shape */}
+        <div className="mb-5">
+          <p className="text-sm font-medium text-slate-300 mb-2">Schedule shape</p>
+          <div className="flex gap-2">
+            {([['down', '↓ Down only'], ['down-up', '↓↑ Down & up']] as [Shape, string][]).map(([s, label]) => (
               <button
-                key={p}
+                key={s}
                 type="button"
-                onClick={() => handlePeakChange(p)}
-                aria-pressed={peak === p}
+                onClick={() => handleShapeChange(s)}
+                aria-pressed={shape === s}
                 className={[
-                  'flex-1 py-3 rounded-xl font-bold text-lg transition-all duration-150',
+                  'flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
-                  peak === p
+                  shape === s
                     ? 'bg-indigo-600 text-white'
                     : 'bg-slate-800 text-slate-300 border border-slate-600 hover:bg-slate-700',
                 ].join(' ')}
               >
-                {p} cards
-                <span className="block text-xs font-normal opacity-70">
-                  {2 * p - 1} rounds
-                </span>
+                {label}
               </button>
             ))}
           </div>
@@ -230,17 +291,23 @@ const SetupPhase: React.FC<SetupPhaseProps> = ({ onSetupComplete, onCancel }) =>
           )}
         </div>
 
-        {/* Round list — compact grid */}
+        {/* Round list — compact grid with suit icon */}
         <div className="mb-6 overflow-y-auto max-h-56">
-          <div className="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-1 text-xs text-slate-400 mb-1 px-1">
-            <span>#</span><span>Cards</span><span>Type</span>
+          <div className="grid grid-cols-[1.25rem_1.5rem_1fr_auto] gap-x-2 gap-y-1 text-xs text-slate-500 mb-1 px-1">
+            <span></span><span>#</span><span>Cards</span><span>Type</span>
           </div>
           {schedule.map((r, i) => (
-            <div key={i} className="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-0 items-center py-1 px-1 rounded-lg hover:bg-slate-800/50">
-              <span className="text-xs text-slate-500 w-5 text-right">{i + 1}</span>
-              <div className="flex gap-0.5">
+            <div key={i} className="grid grid-cols-[1.25rem_1.5rem_1fr_auto] gap-x-2 gap-y-0 items-center py-1 px-1 rounded-lg hover:bg-slate-800/50">
+              {/* Trump suit icon */}
+              <span className={`text-sm leading-none ${
+                r.trumpSuit ? SUIT_COLOR[r.trumpSuit] : 'text-blue-400'
+              }`} aria-hidden="true">
+                {r.trumpSuit ? SUIT_ICON[r.trumpSuit] : '—'}
+              </span>
+              <span className="text-xs text-slate-500 text-right">{i + 1}</span>
+              <div className="flex gap-0.5 overflow-hidden">
                 {Array.from({ length: r.cardCount }, (_, ci) => (
-                  <div key={ci} className="w-2 h-4 bg-slate-600 rounded-sm" aria-hidden="true" />
+                  <div key={ci} className="w-2 h-4 bg-slate-600 rounded-sm shrink-0" aria-hidden="true" />
                 ))}
               </div>
               {preset === 'custom' ? (

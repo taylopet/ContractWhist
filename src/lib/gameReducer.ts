@@ -122,10 +122,10 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         deck, state.players, cardsPerPlayer
       );
 
-      // KAN-66: No-Trumps = null trump; otherwise top of remaining deck
+      // No-Trumps = null trump; use pre-assigned suit if set, else top of remaining deck
       const trumpSuit = modifier === 'no-trumps'
         ? null
-        : (remainingDeck[0]?.suit ?? null);
+        : (roundConfig?.trumpSuit !== undefined ? roundConfig.trumpSuit : remainingDeck[0]?.suit ?? null);
 
       // KAN-66: hand is hidden during bidding for blind/half-blind
       const handRevealed = modifier !== 'blind' && modifier !== 'half-blind';

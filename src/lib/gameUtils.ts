@@ -58,13 +58,30 @@ export const getCardsForRound = (round: number, playerCount: number): number => 
 // ── KAN-66: Round schedule ────────────────────────────────────────────────────
 
 /**
- * Build a pyramid schedule: peak → 1 → peak (e.g. 7,6,5,4,3,2,1,2,3,4,5,6,7).
- * All rounds default to 'normal' modifier; caller can apply modifiers on top.
+ * Build a round schedule.
+ * shape='down-up': peak → 1 → peak (e.g. 7,6,5,4,3,2,1,2,3,4,5,6,7)
+ * shape='down':    peak → 1        (e.g. 7,6,5,4,3,2,1)
  */
-export const buildRoundSchedule = (peak: number): RoundConfig[] => {
+export const buildRoundSchedule = (peak: number, shape: 'down' | 'down-up' = 'down-up'): RoundConfig[] => {
   const down = Array.from({ length: peak }, (_, i) => peak - i);     // peak..1
-  const up   = Array.from({ length: peak - 1 }, (_, i) => i + 2);   // 2..peak
-  return [...down, ...up].map(cardCount => ({ cardCount, modifier: 'normal' as RoundModifier }));
+  const cardCounts = shape === 'down'
+    ? down
+    : [...down, ...Array.from({ length: peak - 1 }, (_, i) => i + 2)]; // 2..peak
+  return cardCounts.map(cardCount => ({ cardCount, modifier: 'normal' as RoundModifier }));
+};
+
+const TRUMP_CYCLE: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
+
+/**
+ * Assign rotating trump suits to a schedule.
+ * No-trumps rounds get trumpSuit=null; all others cycle hearts→diamonds→clubs→spades.
+ */
+export const assignTrumpSuits = (schedule: RoundConfig[]): RoundConfig[] => {
+  let idx = 0;
+  return schedule.map(r => {
+    if (r.modifier === 'no-trumps') return { ...r, trumpSuit: null };
+    return { ...r, trumpSuit: TRUMP_CYCLE[idx++ % 4] };
+  });
 };
 
 /**

@@ -31,6 +31,7 @@ export type RoundModifier = 'normal' | 'no-trumps' | 'half-blind' | 'blind';
 export interface RoundConfig {
   cardCount: number;
   modifier: RoundModifier;
+  trumpSuit?: Suit | null; // pre-assigned trump; undefined = pick from deck at deal time
 }
 
 // KAN-75: per-round result stored in roundHistory for the scoresheet
