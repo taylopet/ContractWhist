@@ -72,6 +72,11 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         maxPlayers: action.payload.playerCount,
         roundSchedule,
         phase: action.payload.playerCount === 1 ? 'bidding' : 'joining',
+        // KAN-82: preserve gameId/joinCode when re-configuring an existing
+        // server-side game (e.g. Play Again). gameStore.createGame() assigns
+        // these itself for brand-new games, so this is a no-op there.
+        gameId: state.gameId,
+        joinCode: state.joinCode,
       };
     }
 
