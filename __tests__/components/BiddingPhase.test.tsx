@@ -91,3 +91,38 @@ describe('BiddingPhase — forbiddenBid', () => {
     );
   });
 });
+
+// KAN-84: house rule — no bid of 0 in three consecutive rounds
+describe('BiddingPhase — zeroBlocked', () => {
+  it('disables the 0 button when zeroBlocked is true', () => {
+    render(<BiddingPhase currentPlayer={player} maxBid={5} onBidSubmit={jest.fn()} zeroBlocked />);
+    const btn = screen.getByRole('button', { name: /Bid 0.*no third zero/i });
+    expect(btn).toBeDisabled();
+  });
+
+  it('zeroBlocked button cannot be selected', async () => {
+    const onBidSubmit = jest.fn();
+    render(<BiddingPhase currentPlayer={player} maxBid={5} onBidSubmit={onBidSubmit} zeroBlocked />);
+    await userEvent.click(screen.getByRole('button', { name: /Bid 0.*no third zero/i }));
+    expect(screen.getByRole('button', { name: /Select a bid/i })).toBeDisabled();
+    expect(onBidSubmit).not.toHaveBeenCalled();
+  });
+
+  it('other bids remain enabled when only 0 is zeroBlocked', () => {
+    render(<BiddingPhase currentPlayer={player} maxBid={3} onBidSubmit={jest.fn()} zeroBlocked />);
+    [1, 2, 3].forEach(n =>
+      expect(screen.getByRole('button', { name: `Bid ${n}` })).not.toBeDisabled()
+    );
+  });
+
+  it('0 stays enabled when zeroBlocked is false', () => {
+    render(<BiddingPhase currentPlayer={player} maxBid={3} onBidSubmit={jest.fn()} zeroBlocked={false} />);
+    expect(screen.getByRole('button', { name: 'Bid 0' })).not.toBeDisabled();
+  });
+
+  it('bust rule takes precedence when 0 is both the bust value and zeroBlocked', () => {
+    render(<BiddingPhase currentPlayer={player} maxBid={3} onBidSubmit={jest.fn()} forbiddenBid={0} zeroBlocked />);
+    const btn = screen.getByRole('button', { name: /Bid 0.*bust/i });
+    expect(btn).toBeDisabled();
+  });
+});

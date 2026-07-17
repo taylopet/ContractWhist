@@ -15,7 +15,7 @@
 
 import { GameState, Card, RoundConfig } from '@/types/game';
 import { gameReducer, GameAction, initialState } from './gameReducer';
-import { buildRoundSchedule } from './gameUtils';
+import { buildRoundSchedule, isZeroBidBlocked } from './gameUtils';
 import { log } from './logger';
 
 const RANK_ORDER: Record<string, number> = {
@@ -277,15 +277,32 @@ export class GameStore {
     if (!player) return 0;
     const cards = player.hand.length;
     const numPlayers = state.players.length;
-    let bid = Math.max(0, Math.floor(cards / numPlayers));
-    // Last-bidder constraint: cannot make total equal cards
-    const othersHaveBid = state.players.filter(p => p.id !== botPlayerId).every(p => p.bid !== null);
-    if (othersHaveBid) {
-      const sumOthers = state.players.filter(p => p.id !== botPlayerId).reduce((s, p) => s + (p.bid ?? 0), 0);
-      const forbidden = cards - sumOthers;
-      if (bid === forbidden) bid = Math.max(0, bid - 1);
+    const heuristic = Math.max(0, Math.floor(cards / numPlayers));
+
+    // Last-bidder constraint: total of all bids cannot equal cards dealt.
+    const others = state.players.filter(p => p.id !== botPlayerId);
+    const othersHaveBid = others.every(p => p.bid !== null);
+    const forbiddenBust = othersHaveBid
+      ? cards - others.reduce((s, p) => s + (p.bid ?? 0), 0)
+      : null;
+    // KAN-84: house rule — no bid of 0 in three consecutive rounds.
+    const zeroBlocked = isZeroBidBlocked(state.roundHistory, botPlayerId);
+
+    // KAN-83: the bust rule is a hard constraint (there's always a legal bid
+    // that satisfies it); the zero-streak rule is soft and must yield if
+    // honouring it would leave no legal bid at all (e.g. 1 card left, the
+    // only non-zero option is also the bust value).
+    const isLegal = (n: number, allowZero: boolean) => n !== forbiddenBust && (allowZero || n !== 0);
+
+    if (isLegal(heuristic, !zeroBlocked)) return heuristic;
+    for (let delta = 1; delta <= cards; delta++) {
+      if (heuristic + delta <= cards && isLegal(heuristic + delta, !zeroBlocked)) return heuristic + delta;
+      if (heuristic - delta >= 0 && isLegal(heuristic - delta, !zeroBlocked)) return heuristic - delta;
     }
-    return bid;
+    // Only reachable when the zero-streak rule excluded the sole bust-legal
+    // bid (which must be 0, since the bust rule alone always leaves something
+    // legal) — the soft rule yields here.
+    return 0;
   }
 
   private botCard(state: GameState, botPlayerId: string): Card | null {

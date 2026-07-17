@@ -1,6 +1,7 @@
 // KAN-73: tests for the server-side GameStore
 // KAN-76: updated for async methods (Redis-backed store)
 import { GameStore } from '@/lib/gameStore';
+import { GameState, Player, RoundResult } from '@/types/game';
 
 let store: GameStore;
 
@@ -175,5 +176,114 @@ describe('GameStore.cleanupOldGames', () => {
     const { gameId } = await store.createGame('Alice', 2);
     store.cleanupOldGames(60 * 60 * 1000);
     expect(await store.getLobbyInfo(gameId)).not.toBeNull();
+  });
+});
+
+// ── botBid — KAN-83/84 ──────────────────────────────────────────────────────
+// botBid is private; accessed via a cast, same as any other pure-logic unit test.
+
+describe('GameStore.botBid', () => {
+  const makePlayer = (id: string, overrides: Partial<Player> = {}): Player => ({
+    id,
+    name: id,
+    hand: [],
+    tricks: 0,
+    bid: null,
+    ...overrides,
+  });
+
+  const baseState: GameState = {
+    players: [],
+    currentPlayerIndex: 0,
+    trickLeaderIndex: 0,
+    trumpSuit: null,
+    deck: [],
+    currentTrick: [],
+    round: 1,
+    phase: 'bidding',
+    scores: {},
+    maxPlayers: 2,
+    trickCompleted: false,
+    trickWinnerIndex: 0,
+    roundSchedule: [],
+    handRevealed: true,
+    roundHistory: [],
+    gameId: null,
+    joinCode: null,
+    myPlayerId: null,
+  };
+
+  const botBid = (state: GameState, botId: string): number =>
+    (store as unknown as { botBid: (s: GameState, id: string) => number }).botBid(state, botId);
+
+  it('KAN-83: does not get stuck on the bust value with 1 card left (the hang scenario)', () => {
+    // 2 players, 1 card each, human already bid 0 — bust value for the bot is 1 - 0 = 1,
+    // and the bot's naive heuristic (floor(1/2)=0) doesn't collide, so this alone wouldn't
+    // reproduce it; the real hang needs the heuristic to land ON the forbidden value.
+    // With 1 card and human bid 1, forbidden = 1 - 1 = 0 — collides with the heuristic 0.
+    const state: GameState = {
+      ...baseState,
+      players: [
+        makePlayer('player1', { hand: [], bid: 1 }),
+        makePlayer('player2', { hand: [{ suit: 'hearts', rank: 'ace' }], isBot: true }),
+      ],
+    };
+    const bid = botBid(state, 'player2');
+    expect(bid).not.toBe(0); // must not submit the bust value it just avoided
+    expect(bid).toBe(1);
+  });
+
+  it('never returns the forbidden bust value across a range of hand sizes', () => {
+    for (let cards = 1; cards <= 6; cards++) {
+      for (let humanBid = 0; humanBid <= cards; humanBid++) {
+        const hand = Array.from({ length: cards }, () => ({ suit: 'hearts' as const, rank: 'ace' as const }));
+        const state: GameState = {
+          ...baseState,
+          players: [
+            makePlayer('player1', { hand: [], bid: humanBid }),
+            makePlayer('player2', { hand, isBot: true }),
+          ],
+        };
+        const forbidden = cards - humanBid;
+        const bid = botBid(state, 'player2');
+        expect(bid).not.toBe(forbidden);
+        expect(bid).toBeGreaterThanOrEqual(0);
+        expect(bid).toBeLessThanOrEqual(cards);
+      }
+    }
+  });
+
+  it('KAN-84: avoids a third consecutive 0 bid when a legal alternative exists', () => {
+    const roundHistory: RoundResult[] = [
+      { roundIndex: 0, trumpSuit: null, perPlayer: { player2: { bid: 0, tricks: 0, score: 10 } } },
+      { roundIndex: 1, trumpSuit: null, perPlayer: { player2: { bid: 0, tricks: 0, score: 10 } } },
+    ];
+    const hand = [{ suit: 'hearts' as const, rank: 'ace' as const }, { suit: 'clubs' as const, rank: 'king' as const }];
+    const state: GameState = {
+      ...baseState,
+      roundHistory,
+      players: [
+        makePlayer('player1', { hand: [] }), // not yet bid — bot is not last bidder
+        makePlayer('player2', { hand, isBot: true }),
+      ],
+    };
+    expect(botBid(state, 'player2')).not.toBe(0);
+  });
+
+  it('KAN-84: yields the zero-streak rule when 0 is the only bust-legal bid', () => {
+    const roundHistory: RoundResult[] = [
+      { roundIndex: 0, trumpSuit: null, perPlayer: { player2: { bid: 0, tricks: 0, score: 10 } } },
+      { roundIndex: 1, trumpSuit: null, perPlayer: { player2: { bid: 0, tricks: 0, score: 10 } } },
+    ];
+    // 1 card, human already bid 0 — bust value is 1, so 0 is the only legal bid.
+    const state: GameState = {
+      ...baseState,
+      roundHistory,
+      players: [
+        makePlayer('player1', { hand: [], bid: 0 }),
+        makePlayer('player2', { hand: [{ suit: 'hearts', rank: 'ace' }], isBot: true }),
+      ],
+    };
+    expect(botBid(state, 'player2')).toBe(0);
   });
 });

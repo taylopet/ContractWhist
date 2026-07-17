@@ -9,10 +9,17 @@ interface BiddingPhaseProps {
   currentPlayer: Player;
   maxBid: number;
   onBidSubmit: (bid: number) => void;
-  forbiddenBid?: number | null; // KAN-71: last-bidder constraint
+  forbiddenBid?: number | null;  // KAN-71: last-bidder constraint
+  zeroBlocked?: boolean;         // KAN-84: no bid of 0 three rounds in a row
 }
 
-const BiddingPhase: React.FC<BiddingPhaseProps> = ({ currentPlayer, maxBid, onBidSubmit, forbiddenBid = null }) => {
+const BiddingPhase: React.FC<BiddingPhaseProps> = ({
+  currentPlayer,
+  maxBid,
+  onBidSubmit,
+  forbiddenBid = null,
+  zeroBlocked = false,
+}) => {
   const [selectedBid, setSelectedBid] = useState<number | null>(null);
 
   return (
@@ -34,14 +41,17 @@ const BiddingPhase: React.FC<BiddingPhaseProps> = ({ currentPlayer, maxBid, onBi
         aria-label="Select bid amount"
       >
         {Array.from({ length: maxBid + 1 }, (_, i) => {
-          const isForbidden = forbiddenBid !== null && i === forbiddenBid;
+          const isBust = forbiddenBid !== null && i === forbiddenBid;
+          const isZeroBlocked = i === 0 && zeroBlocked && !isBust;
+          const isForbidden = isBust || isZeroBlocked;
+          const reason = isBust ? 'bust' : 'no third zero bid in a row';
           return (
             <button
               key={i}
               onClick={() => !isForbidden && setSelectedBid(i)}
               disabled={isForbidden}
               aria-pressed={selectedBid === i}
-              aria-label={isForbidden ? `Bid ${i} — not allowed (bust)` : `Bid ${i}`}
+              aria-label={isForbidden ? `Bid ${i} — not allowed (${reason})` : `Bid ${i}`}
               className={[
                 'h-10 w-10 sm:h-12 sm:w-12 rounded-xl font-bold text-base sm:text-lg transition-all duration-100',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',

@@ -7,7 +7,7 @@
 //         determineWinner updated for 'no-trumps' rounds
 // ============================================================
 
-import { Card, Suit, Rank, Player, RoundConfig, RoundModifier } from '@/types/game';
+import { Card, Suit, Rank, Player, RoundConfig, RoundModifier, RoundResult } from '@/types/game';
 
 // ── Deck ──────────────────────────────────────────────────────────────────────
 
@@ -172,4 +172,13 @@ export const determineWinner = (trick: Card[], trumpSuit: Suit | null): number =
 export const calculateScore = (bid: number, tricks: number): number => {
   if (bid === tricks) return 10 + bid;
   return tricks;
+};
+
+// KAN-84: house rule — a player cannot bid 0 in three consecutive rounds.
+// True only when their previous two completed rounds both recorded a bid of 0.
+export const isZeroBidBlocked = (roundHistory: RoundResult[], playerId: string): boolean => {
+  if (roundHistory.length < 2) return false;
+  const last = roundHistory[roundHistory.length - 1]?.perPlayer[playerId];
+  const prev = roundHistory[roundHistory.length - 2]?.perPlayer[playerId];
+  return last?.bid === 0 && prev?.bid === 0;
 };

@@ -17,7 +17,7 @@ import LobbyPhase from './LobbyPhase';
 import ScoringPhase from './ScoringPhase';
 import RoundScoresheet from './RoundScoresheet';
 import { Card as CardType, RoundConfig } from '@/types/game';
-import { isValidPlay } from '@/lib/gameUtils';
+import { isValidPlay, isZeroBidBlocked } from '@/lib/gameUtils';
 
 const GameBoard = () => {
   const {
@@ -173,6 +173,18 @@ const GameBoard = () => {
     return forbidden >= 0 && forbidden <= cardsDealt ? forbidden : null;
   })();
 
+  // KAN-84: house rule — no bid of 0 in three consecutive rounds. Yields if
+  // the bust rule above has already ruled out every non-zero option (0 must
+  // stay selectable when it's the only legal bid left).
+  const zeroBidBlocked = (() => {
+    if (!showBidPanel) return false;
+    const biddingPlayer = myPlayer ?? currentPlayer;
+    if (!biddingPlayer) return false;
+    if (!isZeroBidBlocked(state.roundHistory, biddingPlayer.id)) return false;
+    const cardsDealt = biddingPlayer.hand.length;
+    return !(cardsDealt === 1 && forbiddenBid === 1);
+  })();
+
   return (
     <div className="flex flex-col h-dvh bg-slate-950 text-slate-50 overflow-hidden">
       {/* Header */}
@@ -261,27 +273,35 @@ const GameBoard = () => {
         )}
       </div>
 
-      {/* KAN-68/70: bottom section — hand + optional bid panel, in-flow; pb for iOS home bar */}
+      {/* KAN-68/70/85: bottom section — hand + optional bid panel, in-flow; pb for iOS home bar.
+          Both sub-regions reserve a fixed height regardless of whether they currently
+          have content, so the table area above never resizes as the hand shrinks or
+          the bidding panel appears/disappears during play. */}
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
-        {myPlayer && myPlayer.hand.length > 0 && (
-          <PlayerHand
-            cards={myPlayer.hand}
-            onCardPlay={handleCardPlay}
-            isCurrentPlayer={isMyTurn}
-            canPlayCard={canPlayCard}
-            handRevealed={state.handRevealed}
-          />
-        )}
+        <div className="h-24 sm:h-32 overflow-y-auto">
+          {myPlayer && myPlayer.hand.length > 0 && (
+            <PlayerHand
+              cards={myPlayer.hand}
+              onCardPlay={handleCardPlay}
+              isCurrentPlayer={isMyTurn}
+              canPlayCard={canPlayCard}
+              handRevealed={state.handRevealed}
+            />
+          )}
+        </div>
 
         {/* KAN-68: BiddingPhase rendered BELOW the hand, not overlapping */}
-        {showBidPanel && (
-          <BiddingPhase
-            currentPlayer={myPlayer ?? currentPlayer!}
-            maxBid={(myPlayer ?? currentPlayer)!.hand.length}
-            onBidSubmit={handleBidSubmit}
-            forbiddenBid={forbiddenBid}
-          />
-        )}
+        <div className="h-[108px] sm:h-[132px] overflow-y-auto">
+          {showBidPanel && (
+            <BiddingPhase
+              currentPlayer={myPlayer ?? currentPlayer!}
+              maxBid={(myPlayer ?? currentPlayer)!.hand.length}
+              onBidSubmit={handleBidSubmit}
+              forbiddenBid={forbiddenBid}
+              zeroBlocked={zeroBidBlocked}
+            />
+          )}
+        </div>
       </div>
 
       {/* Scoring overlay */}

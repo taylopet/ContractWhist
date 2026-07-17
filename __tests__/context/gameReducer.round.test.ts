@@ -162,6 +162,84 @@ describe('PLACE_BID — last-bidder constraint', () => {
   });
 });
 
+// KAN-84: house rule — no bid of 0 in three consecutive rounds
+describe('PLACE_BID — zero-streak constraint', () => {
+  const twoZeroStreakHistory = [
+    { roundIndex: 0, trumpSuit: null, perPlayer: { player1: { bid: 0, tricks: 0, score: 10 } } },
+    { roundIndex: 1, trumpSuit: null, perPlayer: { player1: { bid: 0, tricks: 0, score: 10 } } },
+  ];
+
+  it('rejects a third consecutive 0 bid', () => {
+    const afterStart = gameReducer(
+      { ...stateWith2Players, roundHistory: twoZeroStreakHistory },
+      { type: 'START_ROUND' }
+    );
+    const result = gameReducer(afterStart, {
+      type: 'PLACE_BID',
+      payload: { playerId: 'player1', bid: 0 },
+    });
+    expect(result.players[0].bid).toBeNull(); // rejected — state unchanged
+    expect(result.phase).toBe('bidding');
+  });
+
+  it('accepts a non-zero bid after two zeros', () => {
+    const afterStart = gameReducer(
+      { ...stateWith2Players, roundHistory: twoZeroStreakHistory },
+      { type: 'START_ROUND' }
+    );
+    const result = gameReducer(afterStart, {
+      type: 'PLACE_BID',
+      payload: { playerId: 'player1', bid: 1 },
+    });
+    expect(result.players[0].bid).toBe(1);
+  });
+
+  it('does not restrict a player without two prior zero bids', () => {
+    const oneZeroHistory = [twoZeroStreakHistory[0]]; // only one zero so far
+    const afterStart = gameReducer(
+      { ...stateWith2Players, roundHistory: oneZeroHistory },
+      { type: 'START_ROUND' }
+    );
+    const result = gameReducer(afterStart, {
+      type: 'PLACE_BID',
+      payload: { playerId: 'player1', bid: 0 },
+    });
+    expect(result.players[0].bid).toBe(0);
+  });
+
+  it('does not restrict a different player from the one with the zero streak', () => {
+    const afterStart = gameReducer(
+      { ...stateWith2Players, roundHistory: twoZeroStreakHistory },
+      { type: 'START_ROUND' }
+    );
+    const result = gameReducer(afterStart, {
+      type: 'PLACE_BID',
+      payload: { playerId: 'player2', bid: 0 },
+    });
+    expect(result.players[1].bid).toBe(0);
+  });
+
+  it('yields to the bust rule when 0 is the only legal bid left', () => {
+    // 1 card dealt, player1 (streaking) is last bidder, player2 already bid 0
+    // — forbidden bust value is 1, so 0 must remain legal despite the streak.
+    const oneCardState: GameState = {
+      ...stateWith2Players,
+      phase: 'bidding',
+      players: [
+        { ...makePlayer('player2', 'Bob'), hand: [], bid: 0 },
+        { ...makePlayer('player1', 'Alice'), hand: [{ suit: 'hearts', rank: 'ace' }], bid: null },
+      ],
+      currentPlayerIndex: 1,
+      roundHistory: twoZeroStreakHistory,
+    };
+    const result = gameReducer(oneCardState, {
+      type: 'PLACE_BID',
+      payload: { playerId: 'player1', bid: 0 },
+    });
+    expect(result.players[1].bid).toBe(0); // accepted despite the streak
+  });
+});
+
 describe('END_ROUND', () => {
   const scoringState: GameState = {
     ...stateWith2Players,

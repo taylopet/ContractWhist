@@ -18,6 +18,7 @@ import {
   calculateScore,
   buildRoundSchedule,
   getCardsForRound,
+  isZeroBidBlocked,
 } from './gameUtils';
 
 export type GameAction =
@@ -160,17 +161,25 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     case 'PLACE_BID': {
       if (state.phase !== 'bidding') return state;
 
+      const cardsDealt = state.players[state.currentPlayerIndex].hand.length;
+
       // KAN-71: last-bidder constraint — dealer cannot bid the "bust" value
       const othersHaveBid = state.players
         .filter(p => p.id !== action.payload.playerId)
         .every(p => p.bid !== null);
-      if (othersHaveBid) {
-        const cardsDealt = state.players[state.currentPlayerIndex].hand.length;
-        const sumOtherBids = state.players
-          .filter(p => p.id !== action.payload.playerId)
-          .reduce((sum, p) => sum + (p.bid ?? 0), 0);
-        const forbidden = cardsDealt - sumOtherBids;
-        if (action.payload.bid === forbidden) return state; // reject bust bid
+      const forbiddenBust = othersHaveBid
+        ? cardsDealt - state.players
+            .filter(p => p.id !== action.payload.playerId)
+            .reduce((sum, p) => sum + (p.bid ?? 0), 0)
+        : null;
+      if (action.payload.bid === forbiddenBust) return state; // reject bust bid
+
+      // KAN-84: house rule — no bid of 0 in three consecutive rounds. Soft
+      // constraint: it yields if the bust rule above has already ruled out
+      // every non-zero option, since some legal bid must always exist.
+      if (action.payload.bid === 0 && isZeroBidBlocked(state.roundHistory, action.payload.playerId)) {
+        const hasNonZeroAlternative = !(cardsDealt === 1 && forbiddenBust === 1);
+        if (hasNonZeroAlternative) return state; // reject third-zero bid
       }
 
       const updatedPlayers = state.players.map(p =>
