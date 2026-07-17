@@ -192,7 +192,11 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         // KAN-66: reveal hand when bidding ends (for half-blind/blind rounds)
         handRevealed: allBid ? true : state.handRevealed,
         phase: allBid ? 'playing' : 'bidding',
-        currentPlayerIndex: allBid ? 0 : (state.currentPlayerIndex + 1) % state.players.length,
+        // KAN-87: play starts with the trick leader (same player who bid
+        // first this round), not a hardcoded 0 — otherwise the rotating
+        // dealer/lead from START_ROUND (KAN-79) was ignored the moment
+        // bidding finished, and player 0 always led the first trick.
+        currentPlayerIndex: allBid ? state.trickLeaderIndex : (state.currentPlayerIndex + 1) % state.players.length,
       };
     }
 

@@ -106,6 +106,25 @@ describe('PLACE_BID', () => {
     expect(state.phase).toBe('playing');
   });
 
+  // KAN-87: play must start with the trick leader (first bidder), not always player 0
+  it('play starts with the player who bid first (trick leader), even when rotated', () => {
+    const round2Start = gameReducer(
+      { ...stateWith2Players, phase: 'bidding' as const, round: 2 },
+      { type: 'START_ROUND' }
+    );
+    expect(round2Start.trickLeaderIndex).toBe(1); // round 2 rotates to player2
+    let state = gameReducer(round2Start, {
+      type: 'PLACE_BID',
+      payload: { playerId: 'player2', bid: 0 }, // trick leader bids first
+    });
+    state = gameReducer(state, {
+      type: 'PLACE_BID',
+      payload: { playerId: 'player1', bid: 1 }, // cardsDealt=2, forbidden=2-0=2, so 1 is legal
+    });
+    expect(state.phase).toBe('playing');
+    expect(state.currentPlayerIndex).toBe(1); // player2 (the trick leader) leads first
+  });
+
   it('no-op if phase is not bidding', () => {
     const playingState = { ...afterStart, phase: 'playing' as const };
     const result = gameReducer(playingState, {

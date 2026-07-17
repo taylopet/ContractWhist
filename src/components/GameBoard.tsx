@@ -278,7 +278,7 @@ const GameBoard = () => {
           have content, so the table area above never resizes as the hand shrinks or
           the bidding panel appears/disappears during play. */}
       <div className="shrink-0 pb-[env(safe-area-inset-bottom)]">
-        <div className="h-24 sm:h-32 overflow-y-auto">
+        <div className="h-28 sm:h-36 overflow-y-auto">
           {myPlayer && myPlayer.hand.length > 0 && (
             <PlayerHand
               cards={myPlayer.hand}
@@ -290,8 +290,11 @@ const GameBoard = () => {
           )}
         </div>
 
-        {/* KAN-68: BiddingPhase rendered BELOW the hand, not overlapping */}
-        <div className="h-[108px] sm:h-[132px] overflow-y-auto">
+        {/* KAN-68: BiddingPhase rendered BELOW the hand, not overlapping.
+            KAN-86: reserved height must comfortably fit the panel's actual
+            content (heading + button row + submit button) — it previously
+            undershot by ~30-40px, clipping the submit button off-screen. */}
+        <div className="h-36 sm:h-44 overflow-y-auto">
           {showBidPanel && (
             <BiddingPhase
               currentPlayer={myPlayer ?? currentPlayer!}
