@@ -25,6 +25,12 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      // Static advent calendar page (public/advent.html) served at /fun/advent
+      { source: '/advent', destination: '/advent.html' },
+    ];
+  },
   async headers() {
     return [
       {
