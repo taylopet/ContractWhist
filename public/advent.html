@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cybersecurity ARTEX Advent Calendar</title>
+<title>Cybersecurity Advent Calendar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -42,7 +42,6 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(-
 .eyebrow{font:500 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--signal);display:flex;gap:10px;align-items:center}
 .eyebrow::before{content:"";width:28px;height:1px;background:currentColor}
 h1{font-family:var(--display);font-weight:900;font-size:clamp(2.1rem,5.2vw,4.3rem);line-height:.98;letter-spacing:-.015em;margin:14px 0 12px;text-wrap:balance}
-h1 .artex{font-family:var(--mono);font-weight:700;font-size:.8em;letter-spacing:.03em;color:var(--gold);text-shadow:2px 0 0 rgba(200,48,60,.9),-2px 0 0 rgba(67,226,191,.7)}
 .lede{max-width:62ch;color:#c6d6e1;margin:0;font-size:1.05rem}
 .status{width:340px;background:rgba(233,243,248,.04);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:8px}
 .st-k{font:500 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
@@ -87,7 +86,8 @@ h1 .artex{font-family:var(--mono);font-weight:700;font-size:.8em;letter-spacing:
 .door.double .leaf.l .front::after{right:0;border-right:0}
 .door.double .leaf.r .front::after{left:0;border-left:0}
 .back{transform:rotateY(180deg);background:linear-gradient(90deg,rgba(0,0,0,.12),transparent 35%),repeating-linear-gradient(0deg,rgba(120,90,50,.07) 0 2px,transparent 2px 6px),#eee2c8;display:grid;place-items:center;font:700 9px var(--mono);letter-spacing:.2em;color:rgba(90,66,30,.45)}
-.door.open{z-index:3}
+.door{z-index:2}
+.door.open{z-index:1}
 .door.open .leaf{transform:rotateY(-100deg);pointer-events:none}
 .door.double.open .leaf.r{transform:rotateY(100deg)}
 .door.unlocked:not(.open):hover .leaf{transform:rotateY(-13deg)}
@@ -427,8 +427,8 @@ dialog#viewer::backdrop{background:rgba(3,9,15,.74);backdrop-filter:blur(3px)}
 <div class="wrap">
   <header class="masthead">
     <div>
-      <div class="eyebrow">ARTEX Security · Advent 2026</div>
-      <h1>Cybersecurity <span class="artex">ARTEX</span> Advent Calendar</h1>
+      <div class="eyebrow">Security · Advent 2026</div>
+      <h1>Cybersecurity Advent Calendar</h1>
       <p class="lede">Twenty-five doors, one a day from 1 December. Behind each one is a security meme, a real exploit or a famous mishap, with what happened and what to take from it.</p>
     </div>
     <aside class="status" aria-live="polite">
@@ -460,7 +460,7 @@ dialog#viewer::backdrop{background:rgba(3,9,15,.74);backdrop-filter:blur(3px)}
 
   <footer class="foot">
     <span>All payloads are illustrative and defanged. No elves were phished in the making of this calendar.</span>
-    <span>Patch early, patch often · ARTEX Security</span>
+    <span>Patch early, patch often</span>
   </footer>
 </div>
 
@@ -590,8 +590,8 @@ const HACK = `$ ssh -o ProxyCommand=sleigh root@mainframe.northpole
 /* ---------- the 25 days ---------- */
 const DAYS = [
 {d:1, cat:'meme', title:'Rickrolled', tags:['Classic','Since 2007','Bait-and-switch'], big:'dQw4w9WgXcQ', small:'Rickrolled',
- art:()=>browser('secret-santa.artex.example/claim?gift=8f2c',
-  `<div class="gift-card"><div class="gift-box"><i></i></div><p class="gift-kicker">Secret Santa · ARTEX</p><h3>Your gift has arrived!</h3><p>Someone in the security team got you something special.</p><button class="btn-gift" type="button">Open my gift</button></div>
+ art:()=>browser('secret-santa.example/claim?gift=8f2c',
+  `<div class="gift-card"><div class="gift-box"><i></i></div><p class="gift-kicker">Secret Santa</p><h3>Your gift has arrived!</h3><p>Someone in the security team got you something special.</p><button class="btn-gift" type="button">Open my gift</button></div>
    <div class="rick" hidden><div class="player"><div class="screen"><div class="notes"><span style="left:18%;animation-delay:0s">♪</span><span style="left:72%;animation-delay:.9s">♫</span><span style="left:45%;animation-delay:1.7s">♪</span></div>${elfSVG()}</div><div class="controls"><span>▶</span><div class="prog"><i></i></div><span>0:01 / 3:33</span></div></div><p class="rick-cap">You've been rickrolled.</p><a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" rel="noopener">Watch the original (you know you want to)</a></div>`,'gift-page'),
  init(a){const b=a.querySelector('.btn-gift');b.addEventListener('click',()=>{a.querySelector('.gift-card').hidden=true;a.querySelector('.rick').hidden=false;});},
  what:"The rickroll started on 4chan in 2007: a link promising something you wanted that went to a 1987 pop video instead. It's the internet's longest-running bait-and-switch, and it works for the same reason phishing does. The link said one thing, and nobody checked where it went.",
@@ -873,16 +873,16 @@ Content-Encoding: <span class="y">br</span>
  lesson:"Before the break, test a real restore from offline or immutable backups, write down who can make decisions while people are away, and check that the on-call rota has phone numbers that work."},
 
 {d:25, cat:'meme', title:'A Christmas miracle', tags:['Vulnerability management','Coverage','Merry Christmas'], big:'0 CRIT', small:'Christmas miracle',
- art:`<div class="dash"><div class="dash-head"><span>VulnScan Pro · ARTEX estate</span><span class="pill-ok">25 Dec 2026</span></div><div class="dash-banner">A Christmas miracle: zero open vulnerabilities</div>
+ art:`<div class="dash"><div class="dash-head"><span>VulnScan Pro · full estate</span><span class="pill-ok">25 Dec 2026</span></div><div class="dash-banner">A Christmas miracle: zero open vulnerabilities</div>
 <div class="tiles"><div class="tile crit"><b>0</b><span>Critical</span></div><div class="tile high"><b>0</b><span>High</span></div><div class="tile med"><b>0</b><span>Medium</span></div><div class="tile low"><b>0</b><span>Low</span></div></div>
 <div class="dash-meta">Assets scanned: 0 of 4,812 · Last successful scan: 23 Dec 17:02</div>
 <div class="dash-fine">⚠ Scanner licence expired 23/12/2026. Renewal ticket assigned to: santa (out of office until 4 January).</div>
-<div class="dash-sign">Merry Christmas from the ARTEX security team</div></div>`,
+<div class="dash-sign">Merry Christmas from the security team</div></div>`,
  init(a){if(reduce)return;const box=document.createElement('div');box.className='confetti';const cols=['#f0c35a','#d6343f','#43e2bf','#e9f3f8','#7ee787'];
   for(let i=0;i<90;i++){const p=document.createElement('i');p.style.left=(Math.random()*100)+'%';p.style.background=cols[i%cols.length];p.style.animationDuration=(2.4+Math.random()*2.4)+'s';p.style.animationDelay=(Math.random()*0.9)+'s';box.appendChild(p);}
   a.appendChild(box);return ()=>box.remove();},
  what:"Every vulnerability management team dreams of this dashboard. In practice it means a scanner credential expired, an agent stopped reporting or the asset list came back empty. Zero findings from zero assets is not a clean bill of health.",
- lesson:"Alert on scan coverage as well as findings. Then close the laptop. Merry Christmas from the ARTEX security team, and may your on-call phone stay silent."}
+ lesson:"Alert on scan coverage as well as findings. Then close the laptop. Merry Christmas from the security team, and may your on-call phone stay silent."}
 ];
 
 /* ---------- layout maps: [col,row,colSpan,rowSpan] ---------- */
@@ -918,7 +918,7 @@ DAYS.forEach(day=>{
   if(d===25) el.classList.add('double');
   if(d===24) el.classList.add('arch');
   const pos=(d===24||d===25)?'pos-c':POS[d%POS.length];
-  const leaf=(side)=>`<span class="leaf${side?' '+side:''}"><span class="face front">${side?'':`<span class="num ${pos}">${d}</span>`}${side==='l'||!side?'<span class="lockbadge">locked</span>':''}</span><span class="face back">ARTEX</span></span>`;
+  const leaf=(side)=>`<span class="leaf${side?' '+side:''}"><span class="face front">${side?'':`<span class="num ${pos}">${d}</span>`}${side==='l'||!side?'<span class="lockbadge">locked</span>':''}</span><span class="face back">ADVENT</span></span>`;
   el.innerHTML=`<span class="hole cat-${day.cat}"><span class="thumb"><b class="t-big"></b><span class="t-small"></span><span class="t-view">view ↗</span></span></span>`+
     (d===25?leaf('l')+leaf('r')+'<span class="ribbon"></span><span class="seal">25</span>':leaf(''));
   el.querySelector('.t-big').textContent=day.big;
@@ -936,11 +936,15 @@ function refreshDoors(){
   renderStatus();
 }
 
+// A freshly opened door shows its thumbnail briefly, then the details zoom out of it
+const AUTO_VIEW_MS=2000;let autoT=0;
 function onDoor(d,el){
   if(!isUnlocked(d)){deny(el,d);return;}
+  clearTimeout(autoT);
   if(!state.opened.has(d)){
     state.opened.add(d);save();refreshDoors();
     el.classList.add('fresh');setTimeout(()=>el.classList.remove('fresh'),1800);
+    autoT=setTimeout(()=>openViewer(d,el),reduce?600:AUTO_VIEW_MS);
     return;
   }
   openViewer(d,el);
@@ -968,7 +972,7 @@ function renderStatus(){
   const b=document.getElementById('sudo');b.setAttribute('aria-pressed',String(state.sudo));b.textContent=state.sudo?'# exit   (relock doors)':'$ sudo unlock --all';
 }
 document.getElementById('sudo').addEventListener('click',()=>{state.sudo=!state.sudo;save();refreshDoors();toast(state.sudo?'[sudo] password for elf: ******** ✓  All doors unlocked for preview.':'Privileges dropped. Doors follow the calendar again.');});
-document.getElementById('reset').addEventListener('click',()=>{state.opened.clear();save();refreshDoors();toast('All doors closed. Fresh start.');});
+document.getElementById('reset').addEventListener('click',()=>{clearTimeout(autoT);state.opened.clear();save();refreshDoors();toast('All doors closed. Fresh start.');});
 
 /* ---------- scene ---------- */
 function buildScene(W,H,t){
@@ -1073,7 +1077,7 @@ function buildScene(W,H,t){
   const cw=Math.max(16,maxHW*0.42), cyy=base;
   s.push(`<rect x="${f(cx-cw/2)}" y="${f(cyy)}" width="${f(cw)}" height="${f(chipH)}" rx="2" fill="#1b2a35" stroke="#6c8796" stroke-width="1"/>`);
   for(let j=0;j<4;j++){const py=cyy+chipH*(0.15+j*0.22);s.push(`<rect x="${f(cx-cw/2-4)}" y="${f(py)}" width="4" height="${f(chipH*0.1)}" fill="#9fb4c2"/><rect x="${f(cx+cw/2)}" y="${f(py)}" width="4" height="${f(chipH*0.1)}" fill="#9fb4c2"/>`);}
-  if(chipH>=12) s.push(`<text x="${f(cx)}" y="${f(cyy+chipH*0.66)}" text-anchor="middle" font-family="monospace" font-weight="700" font-size="${f(Math.min(chipH*0.42,cw*0.2))}" fill="#9fb4c2">ARTEX</text>`);
+  if(chipH>=12) s.push(`<text x="${f(cx)}" y="${f(cyy+chipH*0.66)}" text-anchor="middle" font-family="monospace" font-weight="700" font-size="${f(Math.min(chipH*0.42,cw*0.2))}" fill="#9fb4c2">SEC</text>`);
   // falling snow, frozen
   for(let i=0;i<Math.round(W*H/9000);i++){s.push(`<circle cx="${f(R()*W)}" cy="${f(R()*H)}" r="${(0.7+R()*1.5).toFixed(2)}" fill="#fff" opacity="${(0.3+R()*0.45).toFixed(2)}"/>`);}
   s.push('</svg>');
@@ -1124,9 +1128,17 @@ function openViewer(d,from){
   const p=neighbour(d,-1),n=neighbour(d,1);
   vPrev.disabled=!p;vNext.disabled=!n;
   vPrev.textContent=p?`← Day ${p}`:'← Previous';vNext.textContent=n?`Day ${n} →`:'Next →';
-  if(!dlg.open) dlg.showModal();
+  if(!dlg.open){dlg.showModal();if(from) zoomFrom(from);}
   dlg.scrollTop=0;
   if(day.init) cleanup=day.init(vArt)||null;
+}
+// Grow the dialog out of the door's on-screen box to full size
+function zoomFrom(el){
+  if(reduce||!dlg.animate) return;
+  const a=el.getBoundingClientRect(),b=dlg.getBoundingClientRect();if(!b.width||!b.height)return;
+  const dx=(a.left+a.width/2)-(b.left+b.width/2),dy=(a.top+a.height/2)-(b.top+b.height/2);
+  const sc=Math.max(a.width/b.width,a.height/b.height,.08);
+  dlg.animate([{transform:`translate(${dx}px,${dy}px) scale(${sc})`,opacity:.2},{transform:'none',opacity:1}],{duration:520,easing:'cubic-bezier(.2,.75,.25,1)'});
 }
 vPrev.addEventListener('click',()=>{const p=neighbour(current,-1);if(p)openViewer(p);});
 vNext.addEventListener('click',()=>{const n=neighbour(current,1);if(n)openViewer(n);});
